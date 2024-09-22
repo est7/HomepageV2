@@ -1,119 +1,112 @@
-package com.example.homepagev2.behavior;
+package com.example.homepagev2.behavior
 
-import android.content.Context;
-import android.graphics.BitmapFactory;
-import android.graphics.Color;
-import android.graphics.drawable.GradientDrawable;
-import android.util.AttributeSet;
-import android.view.View;
-import android.widget.ImageView;
-
-import androidx.annotation.NonNull;
-import androidx.coordinatorlayout.widget.CoordinatorLayout;
-import androidx.core.math.MathUtils;
-import androidx.palette.graphics.Palette;
-import androidx.viewpager.widget.ViewPager;
-import androidx.viewpager2.widget.ViewPager2;
-
-import com.example.homepagev2.R;
-
+import android.content.Context
+import android.graphics.BitmapFactory
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
+import android.util.AttributeSet
+import android.view.View
+import androidx.coordinatorlayout.widget.CoordinatorLayout
+import androidx.core.math.MathUtils
+import androidx.palette.graphics.Palette
+import androidx.viewpager2.widget.ViewPager2
+import com.example.homepagev2.R
 
 /**
  * @function: face部分的Behavior
  */
-public class FaceBehavior extends CoordinatorLayout.Behavior {
-    private int topBarHeight;//topBar内容高度
-    private float contentTransY;//滑动内容初始化TransY
-    private float downEndY;//下滑时终点值
-    private float faceTransY;//图片往上位移值
-    private GradientDrawable drawable;//蒙层的背景
-    private float initialScale = 1.0f;
-    private float maxScale = 1.5f; // 最大缩放比例，可以根据需要调整
+class FaceBehavior(context: Context, attrs: AttributeSet?) : CoordinatorLayout.Behavior<View>(context, attrs) {
+    private var topBarHeight: Int = 0 //topBar内容高度
+    private var contentTransY: Float = 0f //滑动内容初始化TransY
+    private var downEndY: Float = 0f //下滑时终点值
+    private var faceTransY: Float = 0f //图片往上位移值
+    private lateinit var drawable: GradientDrawable //蒙层的背景
+    private val initialScale = 1.0f
+    private val maxScale = 1.5f // 最大缩放比例，可以根据需要调整
 
-    @SuppressWarnings("unused")
-    public FaceBehavior(Context context) {
-        this(context, null);
-    }
+    @Suppress("unused")
+    constructor(context: Context) : this(context, null)
 
-    @SuppressWarnings("WeakerAccess")
-    public FaceBehavior(Context context, AttributeSet attrs) {
-        super(context, attrs);
+    init {
         //引入尺寸值
-        int resourceId = context.getResources().getIdentifier("status_bar_height", "dimen", "android");
-        int statusBarHeight = context.getResources().getDimensionPixelSize(resourceId);
-        topBarHeight = (int) context.getResources().getDimension(R.dimen.top_bar_height) + statusBarHeight;
-        contentTransY = (int) context.getResources().getDimension(R.dimen.content_trans_y);
-        downEndY = (int) context.getResources().getDimension(R.dimen.content_trans_down_end_y);
-        faceTransY = context.getResources().getDimension(R.dimen.face_trans_y);
+        val resourceId = context.resources.getIdentifier("status_bar_height", "dimen", "android")
+        val statusBarHeight = context.resources.getDimensionPixelSize(resourceId)
+        topBarHeight = context.resources.getDimension(R.dimen.top_bar_height).toInt() + statusBarHeight
+        contentTransY = context.resources.getDimension(R.dimen.content_trans_y)
+        downEndY = context.resources.getDimension(R.dimen.content_trans_down_end_y)
+        faceTransY = context.resources.getDimension(R.dimen.face_trans_y)
 
         //抽取图片资源的亮色或者暗色作为蒙层的背景渐变色
-        Palette palette = Palette.from(BitmapFactory.decodeResource(context.getResources(), R.drawable.avatar_gender))
-                .generate();
-        Palette.Swatch vibrantSwatch = palette.getVibrantSwatch();
-        Palette.Swatch mutedSwatch = palette.getMutedSwatch();
-        int[] colors = new int[2];
-        if (mutedSwatch != null) {
-            colors[0] = mutedSwatch.getRgb();
-            colors[1] = getTranslucentColor(0.6f, mutedSwatch.getRgb());
-        } else if (vibrantSwatch != null) {
-            colors[0] = vibrantSwatch.getRgb();
-            colors[1] = getTranslucentColor(0.6f, vibrantSwatch.getRgb());
-        } else {
-            colors[0] = Color.parseColor("#4D000000");
-            colors[1] = getTranslucentColor(0.6f, Color.parseColor("#4D000000"));
+        val palette = Palette.from(BitmapFactory.decodeResource(context.resources, R.drawable.avatar_gender))
+            .generate()
+        val vibrantSwatch = palette.vibrantSwatch
+        val mutedSwatch = palette.mutedSwatch
+        val colors = IntArray(2)
+        when {
+            mutedSwatch != null -> {
+                colors[0] = mutedSwatch.rgb
+                colors[1] = getTranslucentColor(0.6f, mutedSwatch.rgb)
+            }
+            vibrantSwatch != null -> {
+                colors[0] = vibrantSwatch.rgb
+                colors[1] = getTranslucentColor(0.6f, vibrantSwatch.rgb)
+            }
+            else -> {
+                colors[0] = Color.parseColor("#4D000000")
+                colors[1] = getTranslucentColor(0.6f, Color.parseColor("#4D000000"))
+            }
         }
-        drawable = new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, colors);
+        drawable = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, colors)
     }
 
-    @Override
-    public boolean layoutDependsOn(@NonNull CoordinatorLayout parent, @NonNull View child, @NonNull View dependency) {
+    override fun layoutDependsOn(parent: CoordinatorLayout, child: View, dependency: View): Boolean {
         //依赖Content View
-        return dependency.getId() == R.id.ll_content;
+        return dependency.id == R.id.ll_content
     }
 
-    @Override
-    public boolean onLayoutChild(@NonNull CoordinatorLayout parent, @NonNull View child, int layoutDirection) {
+    override fun onLayoutChild(parent: CoordinatorLayout, child: View, layoutDirection: Int): Boolean {
         //设置蒙层背景
-        child.findViewById(R.id.v_mask).setBackground(drawable);
-        return false;
+        child.findViewById<View>(R.id.v_mask).background = drawable
+        return false
     }
 
-    @Override
-    public boolean onDependentViewChanged(@NonNull CoordinatorLayout parent, @NonNull View child, @NonNull View dependency) {
+    override fun onDependentViewChanged(parent: CoordinatorLayout, child: View, dependency: View): Boolean {
         //计算Content的上滑百分比、下滑百分比
-        float upPro = (contentTransY - MathUtils.clamp(dependency.getTranslationY(), topBarHeight, contentTransY)) / (contentTransY - topBarHeight);
-        float downPro = (downEndY - MathUtils.clamp(dependency.getTranslationY(), contentTransY, downEndY)) / (downEndY - contentTransY);
+        val upPro = (contentTransY - MathUtils.clamp(
+            dependency.translationY,
+            topBarHeight.toFloat(),
+            contentTransY
+        )) / (contentTransY - topBarHeight)
+        val downPro = (downEndY - MathUtils.clamp(dependency.translationY, contentTransY, downEndY)) / (downEndY - contentTransY)
 
-        ViewPager2 imageView = child.findViewById(R.id.iv_face);
-        View maskView = child.findViewById(R.id.v_mask);
+        val imageView = child.findViewById<ViewPager2>(R.id.iv_face)
+        val maskView = child.findViewById<View>(R.id.v_mask)
 
-        // 计算缩放比例
-        float scale = initialScale + (maxScale - initialScale) * downPro;
-        imageView.setScaleX(scale);
-        imageView.setScaleY(scale);
+        // 修改缩放比例计算
+        val scale = 1 + (1 + (maxScale - 1) * -downPro)
+        imageView.scaleX = scale
+        imageView.scaleY = scale
 
-        if (dependency.getTranslationY() >= contentTransY) {
+        imageView.translationY = if (dependency.translationY >= contentTransY) {
             // 下拉时的行为
-            imageView.setTranslationY(downPro * faceTransY);
+            downPro * faceTransY
         } else {
             // 上滑时的行为
-            imageView.setTranslationY(faceTransY + 4 * upPro * faceTransY);
+            faceTransY + 4 * upPro * faceTransY
         }
 
         //根据Content上滑百分比设置图片和蒙层的透明度
-        imageView.setAlpha(1 - upPro);
-        maskView.setAlpha(upPro);
+        imageView.alpha = 1 - upPro
+        maskView.alpha = upPro
 
-        return true;
+        return true
     }
 
-    @SuppressWarnings("SameParameterValue")
-    private int getTranslucentColor(float percent, int rgb) {
-        int blue = Color.blue(rgb);
-        int green = Color.green(rgb);
-        int red = Color.red(rgb);
-        int alpha = Color.alpha(rgb);
-        alpha = Math.round(alpha * percent);
-        return Color.argb(alpha, red, green, blue);
+    private fun getTranslucentColor(percent: Float, rgb: Int): Int {
+        val blue = Color.blue(rgb)
+        val green = Color.green(rgb)
+        val red = Color.red(rgb)
+        val alpha = (Color.alpha(rgb) * percent).toInt()
+        return Color.argb(alpha, red, green, blue)
     }
 }

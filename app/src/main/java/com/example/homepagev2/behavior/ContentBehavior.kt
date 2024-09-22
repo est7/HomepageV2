@@ -1,233 +1,166 @@
-package com.example.homepagev2.behavior;
+package com.example.homepagev2.behavior
 
-import android.animation.ValueAnimator;
-import android.content.Context;
-import android.util.AttributeSet;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.OverScroller;
-
-import androidx.annotation.NonNull;
-import androidx.coordinatorlayout.widget.CoordinatorLayout;
-import androidx.core.view.ViewCompat;
-import androidx.core.widget.NestedScrollView;
-import androidx.recyclerview.widget.RecyclerView;
-
-import com.example.homepagev2.R;
-
-import java.lang.reflect.Field;
+import android.animation.ValueAnimator
+import android.content.Context
+import android.util.AttributeSet
+import android.view.View
+import android.view.ViewGroup
+import android.widget.OverScroller
+import androidx.coordinatorlayout.widget.CoordinatorLayout
+import androidx.core.view.ViewCompat
+import androidx.core.widget.NestedScrollView
+import androidx.recyclerview.widget.RecyclerView
+import com.example.homepagev2.R
 
 /**
  * @function: Content部分的Behavior
  */
-public class ContentBehavior extends CoordinatorLayout.Behavior<View> {
-    private static final long ANIM_DURATION_FRACTION = 500L;
-
-    private int topBarHeight;//topBar内容高度
-    private float contentTransY;//滑动内容初始化TransY //770
-    private float downEndY;//下滑时终点值
-    private ValueAnimator restoreAnimator;//收起内容时执行的动画
-    private View mLlContent;//Content部分
-    private boolean flingFromCollaps = false;//fling是否从折叠状态发生的
-
-    @SuppressWarnings("unused")
-    public ContentBehavior(Context context) {
-        this(context, null);
+class ContentBehavior : CoordinatorLayout.Behavior<View> {
+    companion object {
+        private const val ANIM_DURATION_FRACTION = 500L
     }
 
-    @SuppressWarnings("WeakerAccess")
-    public ContentBehavior(Context context, AttributeSet attrs) {
-        super(context, attrs);
-        int resourceId = context.getResources().getIdentifier("status_bar_height", "dimen", "android");
-        int statusBarHeight = context.getResources().getDimensionPixelSize(resourceId);
-        topBarHeight = (int) context.getResources().getDimension(R.dimen.top_bar_height) + statusBarHeight;
-        contentTransY = (int) context.getResources().getDimension(R.dimen.content_trans_y);
-        downEndY = (int) context.getResources().getDimension(R.dimen.content_trans_down_end_y);
+    private var topBarHeight: Int = 0 //topBar内容高度
+    private var contentTransY: Float = 0f //滑动内容初始化TransY //770
+    private var downEndY: Float = 0f //下滑时终点值
+    private lateinit var restoreAnimator: ValueAnimator //收起内容时执行的动画
+    private lateinit var mLlContent: View //Content部分
+    private var flingFromCollaps = false //fling是否从折叠状态发生的
 
-        restoreAnimator = new ValueAnimator();
-        restoreAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-            @Override
-            public void onAnimationUpdate(ValueAnimator animation) {
-                translation(mLlContent, (float) animation.getAnimatedValue());
+    @JvmOverloads
+    constructor(context: Context, attrs: AttributeSet? = null) : super(context, attrs) {
+        //引入尺寸值
+        val resourceId = context.resources.getIdentifier("status_bar_height", "dimen", "android")
+        val statusBarHeight = context.resources.getDimensionPixelSize(resourceId)
+        topBarHeight = context.resources.getDimension(R.dimen.top_bar_height).toInt() + statusBarHeight
+        contentTransY = context.resources.getDimension(R.dimen.content_trans_y)
+        downEndY = context.resources.getDimension(R.dimen.content_trans_down_end_y)
+
+        restoreAnimator = ValueAnimator().apply {
+            addUpdateListener { animation ->
+                translation(mLlContent, animation.animatedValue as Float)
             }
-        });
+        }
     }
 
-    @Override
-    public boolean onMeasureChild(@NonNull CoordinatorLayout parent, View child,
-                                  int parentWidthMeasureSpec, int widthUsed, int parentHeightMeasureSpec,
-                                  int heightUsed) {
-        final int childLpHeight = child.getLayoutParams().height;
-        if (childLpHeight == ViewGroup.LayoutParams.MATCH_PARENT
-                || childLpHeight == ViewGroup.LayoutParams.WRAP_CONTENT) {
+    override fun onMeasureChild(parent: CoordinatorLayout, child: View, parentWidthMeasureSpec: Int, widthUsed: Int, parentHeightMeasureSpec: Int, heightUsed: Int): Boolean {
+        val childLpHeight = child.layoutParams.height
+        if (childLpHeight == ViewGroup.LayoutParams.MATCH_PARENT || childLpHeight == ViewGroup.LayoutParams.WRAP_CONTENT) {
             //先获取CoordinatorLayout的测量规格信息，若不指定具体高度则使用CoordinatorLayout的高度
-            int availableHeight = View.MeasureSpec.getSize(parentHeightMeasureSpec);
+            var availableHeight = View.MeasureSpec.getSize(parentHeightMeasureSpec)
             if (availableHeight == 0) {
-                availableHeight = parent.getHeight();
+                availableHeight = parent.height
             }
             //设置Content部分高度
-            final int height = availableHeight - topBarHeight;
-            final int heightMeasureSpec = View.MeasureSpec.makeMeasureSpec(height,
-                    childLpHeight == ViewGroup.LayoutParams.MATCH_PARENT
-                            ? View.MeasureSpec.EXACTLY
-                            : View.MeasureSpec.AT_MOST);
+            val height = availableHeight - topBarHeight
+            val heightMeasureSpec = View.MeasureSpec.makeMeasureSpec(height,
+                if (childLpHeight == ViewGroup.LayoutParams.MATCH_PARENT) View.MeasureSpec.EXACTLY else View.MeasureSpec.AT_MOST)
             //执行指定高度的测量，并返回true表示使用Behavior来代理测量子View
-            parent.onMeasureChild(child, parentWidthMeasureSpec,
-                    widthUsed, heightMeasureSpec, heightUsed);
-            return true;
+            parent.onMeasureChild(child, parentWidthMeasureSpec, widthUsed, heightMeasureSpec, heightUsed)
+            return true
         }
-        return false;
+        return false
     }
 
-    @Override
-    public boolean onLayoutChild(@NonNull CoordinatorLayout parent, @NonNull View child, int layoutDirection) {
-        boolean handleLayout = super.onLayoutChild(parent, child, layoutDirection);
+    override fun onLayoutChild(parent: CoordinatorLayout, child: View, layoutDirection: Int): Boolean {
+        val handleLayout = super.onLayoutChild(parent, child, layoutDirection)
         //绑定Content View
-        mLlContent = child;
-        return handleLayout;
-    }
-
-    //---NestedScrollingParent---//
-    @Override
-    @SuppressWarnings("deprecation")
-    public boolean onStartNestedScroll(@NonNull CoordinatorLayout coordinatorLayout, @NonNull View child,
-                                       @NonNull View directTargetChild, @NonNull View target, int axes) {
-        return onStartNestedScroll(coordinatorLayout, child, directTargetChild, target, axes, ViewCompat.TYPE_TOUCH);
-    }
-
-    @Override
-    @SuppressWarnings("deprecation")
-    public void onNestedScrollAccepted(@NonNull CoordinatorLayout coordinatorLayout, @NonNull View child,
-                                       @NonNull View directTargetChild, @NonNull View target, int axes) {
-        onNestedScrollAccepted(coordinatorLayout, child, directTargetChild, target, axes, ViewCompat.TYPE_TOUCH);
-    }
-
-    @Override
-    @SuppressWarnings("deprecation")
-    public void onNestedPreScroll(@NonNull CoordinatorLayout coordinatorLayout, @NonNull View child, @NonNull View target, int dx, int dy, @NonNull int[] consumed) {
-        onNestedPreScroll(coordinatorLayout, child, target, dx, dy, consumed, ViewCompat.TYPE_TOUCH);
-    }
-
-    @Override
-    @SuppressWarnings("deprecation")
-    public void onStopNestedScroll(@NonNull CoordinatorLayout coordinatorLayout, @NonNull View child, @NonNull View target) {
-        onStopNestedScroll(coordinatorLayout, child, target, ViewCompat.TYPE_TOUCH);
-    }
-
-    @Override
-    public boolean onNestedPreFling(@NonNull CoordinatorLayout coordinatorLayout, @NonNull View child, @NonNull View target, float velocityX, float velocityY) {
-        flingFromCollaps = (child.getTranslationY() <= contentTransY);
-        return false;
+        mLlContent = child
+        return handleLayout
     }
 
     //---NestedScrollingParent2---//
-    @Override
-    public boolean onStartNestedScroll(@NonNull CoordinatorLayout coordinatorLayout, @NonNull View child,
-                                       @NonNull View directTargetChild, @NonNull View target, int axes, int type) {
+    override fun onStartNestedScroll(coordinatorLayout: CoordinatorLayout, child: View, directTargetChild: View, target: View, axes: Int, type: Int): Boolean {
         //只接受内容View的垂直滑动
-        return directTargetChild.getId() == R.id.ll_content
-                && axes == ViewCompat.SCROLL_AXIS_VERTICAL;
+        return directTargetChild.id == R.id.ll_content && axes == ViewCompat.SCROLL_AXIS_VERTICAL
     }
 
-    @Override
-    public void onNestedScrollAccepted(@NonNull CoordinatorLayout coordinatorLayout, @NonNull View child,
-                                       @NonNull View directTargetChild, @NonNull View target, int axes, int type) {
-        if (restoreAnimator.isStarted()) {
-            restoreAnimator.cancel();
+    override fun onNestedScrollAccepted(coordinatorLayout: CoordinatorLayout, child: View, directTargetChild: View, target: View, axes: Int, type: Int) {
+        if (restoreAnimator.isStarted) {
+            restoreAnimator.cancel()
         }
     }
 
-    @Override
-    public void onStopNestedScroll(@NonNull CoordinatorLayout coordinatorLayout, @NonNull View child, @NonNull View target, int type) {
+    override fun onStopNestedScroll(coordinatorLayout: CoordinatorLayout, child: View, target: View, type: Int) {
         //如果是从初始状态转换到展开状态过程触发收起动画
-        if (child.getTranslationY() > contentTransY) {
-            restore();
+        if (child.translationY > contentTransY) {
+            restore()
         }
     }
 
-    @Override
-    public void onNestedPreScroll(@NonNull CoordinatorLayout coordinatorLayout, @NonNull View child,
-                                  @NonNull View target, int dx, int dy, @NonNull int[] consumed, int type) {
-        float transY = child.getTranslationY() - dy;
+    override fun onNestedPreScroll(coordinatorLayout: CoordinatorLayout, child: View, target: View, dx: Int, dy: Int, consumed: IntArray, type: Int) {
+        val transY = child.translationY - dy
 
         if (type == ViewCompat.TYPE_NON_TOUCH && !flingFromCollaps) {
-            return;
+            return
         }
 
         //处理上滑
         if (dy > 0) {
             if (transY >= topBarHeight) {
-                translationByConsume(child, transY, consumed, dy);
+                translationByConsume(child, transY, consumed, dy.toFloat())
             } else {
-                translationByConsume(child, topBarHeight, consumed, (child.getTranslationY() - topBarHeight));
+                translationByConsume(child, topBarHeight.toFloat(), consumed, (child.translationY - topBarHeight))
             }
         }
 
         if (dy < 0 && !target.canScrollVertically(-1)) {
             //下滑时处理Fling,折叠时下滑Recycler(或NestedScrollView) Fling滚动到contentTransY停止Fling
             if (type == ViewCompat.TYPE_NON_TOUCH && transY >= contentTransY && flingFromCollaps) {
-                flingFromCollaps = false;
-                translationByConsume(child, contentTransY, consumed, dy);
-                stopViewScroll(target);
-                return;
+                flingFromCollaps = false
+                translationByConsume(child, contentTransY, consumed, dy.toFloat())
+                stopViewScroll(target)
+                return
             }
 
             //处理下滑
-            if (transY >= topBarHeight && transY <= downEndY) {
-                translationByConsume(child, transY, consumed, dy);
+            if (transY in topBarHeight.toFloat()..downEndY) {
+                translationByConsume(child, transY, consumed, dy.toFloat())
             } else {
-                translationByConsume(child, downEndY, consumed, (downEndY - child.getTranslationY()));
-                stopViewScroll(target);
+                translationByConsume(child, downEndY, consumed, (downEndY - child.translationY))
+                stopViewScroll(target)
             }
         }
     }
 
-    private void stopViewScroll(View target) {
-        if (target instanceof RecyclerView) {
-            ((RecyclerView) target).stopScroll();
-        }
-        if (target instanceof NestedScrollView) {
-            try {
-                Class<? extends NestedScrollView> clazz = ((NestedScrollView) target).getClass();
-                Field mScroller = clazz.getDeclaredField("mScroller");
-                mScroller.setAccessible(true);
-                OverScroller overScroller = (OverScroller) mScroller.get(target);
-                overScroller.abortAnimation();
-            } catch (NoSuchFieldException | IllegalAccessException e) {
-                e.printStackTrace();
+    private fun stopViewScroll(target: View) {
+        when (target) {
+            is RecyclerView -> target.stopScroll()
+            is NestedScrollView -> try {
+                val field = NestedScrollView::class.java.getDeclaredField("mScroller")
+                field.isAccessible = true
+                (field.get(target) as OverScroller).abortAnimation()
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
     }
 
-    private void translationByConsume(View view, float translationY, int[] consumed, float consumedDy) {
-        consumed[1] = (int) consumedDy;
-        view.setTranslationY(translationY);
+    private fun translationByConsume(view: View, translationY: Float, consumed: IntArray, consumedDy: Float) {
+        consumed[1] = consumedDy.toInt()
+        view.translationY = translationY
     }
 
-    private void translation(View view, float translationY) {
-        view.setTranslationY(translationY);
+    private fun translation(view: View, translationY: Float) {
+        view.translationY = translationY
     }
 
-
-    private void restore() {
-        if (restoreAnimator.isStarted()) {
-            restoreAnimator.cancel();
-            restoreAnimator.removeAllListeners();
+    private fun restore() {
+        if (restoreAnimator.isStarted) {
+            restoreAnimator.cancel()
+            restoreAnimator.removeAllListeners()
         }
-        restoreAnimator.setFloatValues(mLlContent.getTranslationY(), contentTransY);
-        restoreAnimator.setDuration(ANIM_DURATION_FRACTION);
-
-        restoreAnimator.start();
+        restoreAnimator.setFloatValues(mLlContent.translationY, contentTransY)
+        restoreAnimator.duration = ANIM_DURATION_FRACTION
+        restoreAnimator.start()
     }
 
-    @Override
-    public void onDetachedFromLayoutParams() {
-        if (restoreAnimator.isStarted()) {
-            restoreAnimator.cancel();
-            restoreAnimator.removeAllUpdateListeners();
-            restoreAnimator.removeAllListeners();
-            restoreAnimator = null;
+    override fun onDetachedFromLayoutParams() {
+        if (restoreAnimator.isStarted) {
+            restoreAnimator.cancel()
+            restoreAnimator.removeAllUpdateListeners()
+            restoreAnimator.removeAllListeners()
         }
-        super.onDetachedFromLayoutParams();
+        super.onDetachedFromLayoutParams()
     }
 }
