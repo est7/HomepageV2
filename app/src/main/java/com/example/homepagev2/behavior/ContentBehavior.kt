@@ -3,6 +3,7 @@ package com.example.homepagev2.behavior
 import android.animation.ValueAnimator
 import android.content.Context
 import android.util.AttributeSet
+import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.widget.OverScroller
@@ -43,7 +44,14 @@ class ContentBehavior : CoordinatorLayout.Behavior<View> {
         }
     }
 
-    override fun onMeasureChild(parent: CoordinatorLayout, child: View, parentWidthMeasureSpec: Int, widthUsed: Int, parentHeightMeasureSpec: Int, heightUsed: Int): Boolean {
+    override fun onMeasureChild(
+        parent: CoordinatorLayout,
+        child: View,
+        parentWidthMeasureSpec: Int,
+        widthUsed: Int,
+        parentHeightMeasureSpec: Int,
+        heightUsed: Int
+    ): Boolean {
         val childLpHeight = child.layoutParams.height
         if (childLpHeight == ViewGroup.LayoutParams.MATCH_PARENT || childLpHeight == ViewGroup.LayoutParams.WRAP_CONTENT) {
             //先获取CoordinatorLayout的测量规格信息，若不指定具体高度则使用CoordinatorLayout的高度
@@ -53,8 +61,10 @@ class ContentBehavior : CoordinatorLayout.Behavior<View> {
             }
             //设置Content部分高度
             val height = availableHeight - topBarHeight
-            val heightMeasureSpec = View.MeasureSpec.makeMeasureSpec(height,
-                if (childLpHeight == ViewGroup.LayoutParams.MATCH_PARENT) View.MeasureSpec.EXACTLY else View.MeasureSpec.AT_MOST)
+            val heightMeasureSpec = View.MeasureSpec.makeMeasureSpec(
+                height,
+                if (childLpHeight == ViewGroup.LayoutParams.MATCH_PARENT) View.MeasureSpec.EXACTLY else View.MeasureSpec.AT_MOST
+            )
             //执行指定高度的测量，并返回true表示使用Behavior来代理测量子View
             parent.onMeasureChild(child, parentWidthMeasureSpec, widthUsed, heightMeasureSpec, heightUsed)
             return true
@@ -69,13 +79,39 @@ class ContentBehavior : CoordinatorLayout.Behavior<View> {
         return handleLayout
     }
 
+    override fun onNestedPreFling(
+        coordinatorLayout: CoordinatorLayout,
+        child: View,
+        target: View,
+        velocityX: Float,
+        velocityY: Float
+    ): Boolean {
+        flingFromCollaps = (child.translationY <= contentTransY)
+        return false
+    }
+
+
     //---NestedScrollingParent2---//
-    override fun onStartNestedScroll(coordinatorLayout: CoordinatorLayout, child: View, directTargetChild: View, target: View, axes: Int, type: Int): Boolean {
+    override fun onStartNestedScroll(
+        coordinatorLayout: CoordinatorLayout,
+        child: View,
+        directTargetChild: View,
+        target: View,
+        axes: Int,
+        type: Int
+    ): Boolean {
         //只接受内容View的垂直滑动
         return directTargetChild.id == R.id.ll_content && axes == ViewCompat.SCROLL_AXIS_VERTICAL
     }
 
-    override fun onNestedScrollAccepted(coordinatorLayout: CoordinatorLayout, child: View, directTargetChild: View, target: View, axes: Int, type: Int) {
+    override fun onNestedScrollAccepted(
+        coordinatorLayout: CoordinatorLayout,
+        child: View,
+        directTargetChild: View,
+        target: View,
+        axes: Int,
+        type: Int
+    ) {
         if (restoreAnimator.isStarted) {
             restoreAnimator.cancel()
         }
@@ -88,10 +124,17 @@ class ContentBehavior : CoordinatorLayout.Behavior<View> {
         }
     }
 
-    override fun onNestedPreScroll(coordinatorLayout: CoordinatorLayout, child: View, target: View, dx: Int, dy: Int, consumed: IntArray, type: Int) {
+    override fun onNestedPreScroll(
+        coordinatorLayout: CoordinatorLayout,
+        child: View,
+        target: View,
+        dx: Int,
+        dy: Int,
+        consumed: IntArray,
+        type: Int
+    ) {
         val transY = child.translationY - dy
-
-        if (type == ViewCompat.TYPE_NON_TOUCH && !flingFromCollaps) {
+        if (type == ViewCompat.TYPE_NON_TOUCH && !flingFromCollaps && dy <= 0) {
             return
         }
 
