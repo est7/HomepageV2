@@ -7,6 +7,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
@@ -98,30 +99,42 @@ class MainActivity : AppCompatActivity() {
         val navItems = listOf(
             NavItem(
                 ContextCompat.getDrawable(this, R.drawable.ic_home),
-                ContextCompat.getDrawable(this, R.drawable.ic_home),
+                ContextCompat.getDrawable(this, R.drawable.avatar_gender),
                 ContextCompat.getDrawable(this, R.drawable.ic_home),
                 "首页",
+                false,
                 0
             ),
             NavItem(
                 ContextCompat.getDrawable(this, R.drawable.ic_home),
-                ContextCompat.getDrawable(this, R.drawable.ic_home),
+                ContextCompat.getDrawable(this, R.drawable.avatar_gender),
                 ContextCompat.getDrawable(this, R.drawable.ic_home),
                 "消息",
+                false,
                 5
             ),
             NavItem(
                 ContextCompat.getDrawable(this, R.drawable.ic_home),
-                ContextCompat.getDrawable(this, R.drawable.ic_home),
+                ContextCompat.getDrawable(this, R.drawable.avatar_gender),
                 ContextCompat.getDrawable(this, R.drawable.ic_home),
                 "联系人",
+                false,
                 0
+            ), NavItem(
+                ContextCompat.getDrawable(this, R.drawable.ic_home),
+                ContextCompat.getDrawable(this, R.drawable.avatar_gender),
+                ContextCompat.getDrawable(this, R.drawable.ic_home),
+                "好饿",
+                false,
+                4
             ),
+
             NavItem(
                 ContextCompat.getDrawable(this, R.drawable.ic_home),
-                ContextCompat.getDrawable(this, R.drawable.ic_home),
+                ContextCompat.getDrawable(this, R.drawable.avatar_gender),
                 ContextCompat.getDrawable(this, R.drawable.ic_home),
                 "我的",
+                false,
                 2
             )
         )
@@ -130,6 +143,55 @@ class MainActivity : AppCompatActivity() {
 
         // 可以设置初始选中项
         navigationBar.selectItem(0)
+
+
+        navigationBar.setOnClickItemListener { index, navItem ->
+            //show toast
+            Toast.makeText(this, "Clicked item $index", Toast.LENGTH_SHORT).show()
+            //根据不同的index，跳转到不同的页面
+            when (index) {
+                0 -> {
+                    //首页
+                }
+
+                1 -> {
+                    //消息
+                }
+
+                2 -> {
+                    //联系人
+                }
+
+                3 -> {
+                    //我的
+                }
+            }
+        }
+
+        navigationBar.setOnDoubleClickItemListener { index, navItem ->
+            //show toast
+            Toast.makeText(this, "Double Clicked item $index", Toast.LENGTH_SHORT).show()
+            //根据不同的index，跳转到不同的页面
+            when (index) {
+                0 -> {
+                    //首页
+                }
+
+                1 -> {
+                    //消息
+                }
+
+                2 -> {
+                    //联系人
+                }
+
+                3 -> {
+                    //我的
+                    navigationBar.updateBadgeCount(index, 0)
+                }
+            }
+        }
+
     }
 
 

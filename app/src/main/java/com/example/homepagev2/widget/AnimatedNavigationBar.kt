@@ -1,7 +1,6 @@
 package com.example.homepagev2.widget
 
-import android.animation.Animator
-import android.animation.AnimatorListenerAdapter
+import android.animation.AnimatorSet
 import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Canvas
@@ -11,10 +10,12 @@ import android.graphics.Path
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.os.Parcelable
+import android.os.SystemClock
 import android.util.AttributeSet
 import android.view.HapticFeedbackConstants
 import android.view.LayoutInflater
 import android.view.MotionEvent
+import android.view.View
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.animation.OvershootInterpolator
 import android.widget.LinearLayout
@@ -90,12 +91,14 @@ class AnimatedNavigationBar @JvmOverloads constructor(
 
         // 设置ViewGroup的一些属性
         setWillNotDraw(false) // 确保onDraw被调用
+        clipToPadding = false // 允许子视图绘制超出边界
         clipChildren = false // 允许子视图绘制超出边界
     }
 
     // 创建图标动画器
-    private fun createIconAnimator(index: Int): ValueAnimator {
-        return ValueAnimator.ofFloat(1f, 0.7f, 1.3f, 1f).apply {
+    private fun createIconAnimator(index: Int): AnimatorSet {
+        // 缩放动画
+        val scaleAnimator = ValueAnimator.ofFloat(1f, 0.7f, 1.3f, 1.2f).apply {
             duration = 400
             interpolator = AccelerateDecelerateInterpolator()
             addUpdateListener {
@@ -103,12 +106,22 @@ class AnimatedNavigationBar @JvmOverloads constructor(
                 iconScales[index] = scale
                 updateItemScale(index, scale)
             }
-            addListener(object : AnimatorListenerAdapter() {
-                override fun onAnimationEnd(animation: Animator) {
-                    // 动画结束后移除缩放值，恢复默认
-                    iconScales.remove(index)
-                }
-            })
+        }
+
+        // 位移动画
+        val translationAnimator = ValueAnimator.ofFloat(0f, -8f).apply {
+            duration = 400
+            interpolator = AccelerateDecelerateInterpolator()
+            addUpdateListener {
+                val translationY = it.animatedValue as Float
+                navItemBindings[index].navItemIcon.translationY = translationY
+            }
+        }
+
+        // 组合动画
+        return AnimatorSet().apply {
+            playTogether(scaleAnimator, translationAnimator)
+            // 不再在动画结束时移除缩放值，以保持最终状态
         }
     }
 
@@ -121,6 +134,19 @@ class AnimatedNavigationBar @JvmOverloads constructor(
             scaleX = scale
             scaleY = scale
         }
+    }
+
+    // 重置图标状态的方法（在切换选中项时调用）
+    private fun resetIconState(index: Int) {
+        if (index < 0 || index >= navItemBindings.size) return
+
+        val binding = navItemBindings[index]
+        binding.navItemIcon.apply {
+            scaleX = 1f
+            scaleY = 1f
+            translationY = 0f
+        }
+        iconScales.remove(index)
     }
 
     // 设置导航项目
@@ -152,7 +178,10 @@ class AnimatedNavigationBar @JvmOverloads constructor(
         val binding = NavItemBinding.inflate(inflater, this, false)
 
         // 设置图标
-        binding.navItemIcon.setImageDrawable(item.defaultIcon)
+        binding.navItemIcon.setImageDrawable(
+            if (index == selectedIndex) item.selectedIcon else item.defaultIcon
+        )
+
         binding.navItemIcon.setColorFilter(
             if (index == selectedIndex) selectedIconColor else normalIconColor
         )
@@ -175,8 +204,14 @@ class AnimatedNavigationBar @JvmOverloads constructor(
         // 设置点击监听器
         binding.root.setOnClickListener {
             selectItem(index)
+            onClickListener?.invoke(index, navItems[index])
             performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
         }
+//        val enable = binding.root.setControlledDoubleClickListener {
+//            selectItem(index)
+//            onDoubleClickListener?.invoke(index, navItems[index])
+//            performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+//        }
 
         return binding
     }
@@ -204,14 +239,89 @@ class AnimatedNavigationBar @JvmOverloads constructor(
         createIconAnimator(index).start()
     }
 
+
+    /**
+     * @param Int 表示点击的项的索引
+     * @param NavItem 表示点击的项的数据模型
+     */
+    private var onClickListener: ((Int, NavItem) -> Unit)? = null
+    public fun setOnClickItemListener(listener: (Int, NavItem) -> Unit) {
+        this.onClickListener = listener
+    }
+
+    /**
+     * @param Int 表示点击的项的索引
+     * @param NavItem 表示点击的项的数据模型
+     */
+    private var onDoubleClickListener: ((Int, NavItem) -> Unit)? = null
+    public fun setOnDoubleClickItemListener(listener: (Int, NavItem) -> Unit) {
+        this.onDoubleClickListener = listener
+    }
+
+    public fun changeCurrentSelectedTabToScrollTapStatus() {
+        navItems[selectedIndex].tapToScrollStatus = true
+        updateSelectedState()
+    }
+
+    public fun setTapToScrollTapStatus(index: Int, status: Boolean) {
+        navItems[index].tapToScrollStatus = status
+        updateSelectedState()
+    }
+
+    public fun updateBadgeCount(index: Int, badgeCount: Int) {
+        if (index < 0 || index >= navItems.size) return
+        navItems[index].badgeCount = badgeCount
+        navItemBindings[index].navItemBadge.text = badgeCount.toString()
+        navItemBindings[index].navItemBadge.visibility = if (badgeCount > 0) VISIBLE else GONE
+        updateSelectedState()
+    }
+
+
+    public fun clearBadgeCount() {
+        navItems.forEachIndexed { index, navItem ->
+            navItem.badgeCount = 0
+            navItemBindings[index].navItemBadge.text = ""
+            navItemBindings[index].navItemBadge.visibility = GONE
+        }
+    }
+
     // 更新所有项的选中状态
     private fun updateSelectedState() {
         navItemBindings.forEachIndexed { index, binding ->
             val isSelected = index == selectedIndex
+            val isTapToScrollStatus = navItems[index].tapToScrollStatus
+
+            if (isSelected) {
+                binding.root.setOnDoubleClickListener {
+                    selectItem(index)
+                    onDoubleClickListener?.invoke(index, navItems[index])
+                    performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                }
+            } else {
+                binding.root.setOnDoubleClickListener(null)
+                binding.root.setOnClickListener {
+                    selectItem(index)
+                    onClickListener?.invoke(index, navItems[index])
+                    performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                }
+            }
+
+
+            // 更新图标
+            val drawable = if (isTapToScrollStatus) {
+                navItems[index].tapToScrollIcon
+            } else if (isSelected) {
+                navItems[index].selectedIcon
+            } else {
+                navItems[index].defaultIcon
+            }
+
+            binding.navItemIcon.setImageDrawable(drawable)
 
             // 更新图标颜色
             binding.navItemIcon.setColorFilter(
                 if (isSelected) selectedIconColor else normalIconColor
+
             )
 
             // 更新文字颜色
@@ -251,7 +361,7 @@ class AnimatedNavigationBar @JvmOverloads constructor(
     ) {
         // 曲线参数 - 增加高度，减小宽度使曲线更尖锐
         val bulgeHeight = 30f // 凸起高度
-        val bulgeWidth = itemWidth * 0.4f // 凸起宽度
+        val bulgeWidth = itemWidth * 0.5f // 凸起宽度
 
         // 减小过渡区域宽度
         val transitionWidth = itemWidth * 0.2f
@@ -359,5 +469,44 @@ data class NavItem(
     val selectedIcon: Drawable?,
     val tapToScrollIcon: Drawable?,
     val title: String,
-    val badgeCount: Int = 0
+    var tapToScrollStatus: Boolean,
+    var badgeCount: Int = 0
 )
+
+
+fun View.setOnDoubleClickListener(
+    onDoubleClick: ((View) -> Unit)?,
+) {
+    if (onDoubleClick == null) return
+
+    var lastClickTime = 0L
+    var clickCount = 0
+
+    // 创建单击确认的 Runnable
+    val singleClickRunnable = Runnable {
+        if (clickCount == 1) {
+        }
+        clickCount = 0
+    }
+
+    // 设置点击监听器
+    this.setOnClickListener {
+        // 移除之前可能存在的单击确认 Runnable
+        this.removeCallbacks(singleClickRunnable)
+
+        val currentTime = SystemClock.elapsedRealtime()
+
+        if (currentTime - lastClickTime < 300) {
+            // 双击被触发
+            clickCount = 0
+            onDoubleClick?.invoke(this)
+        } else {
+            // 可能是单击的第一次点击
+            clickCount = 1
+            // 延迟执行单击确认
+            this.postDelayed(singleClickRunnable, 300)
+        }
+
+        lastClickTime = currentTime
+    }
+}
