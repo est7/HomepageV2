@@ -10,6 +10,7 @@ import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
@@ -22,6 +23,7 @@ import androidx.viewpager2.adapter.FragmentStateAdapter
 import androidx.viewpager2.widget.ViewPager2
 import com.androidrtc.chat.modules.homepage.bean.UserInformationViewModel
 import com.example.homepagev2.databinding.ActivityMainBinding
+import com.example.homepagev2.widget.AnimatedNavigationBar
 import com.google.android.material.tabs.TabLayoutMediator
 
 
@@ -45,7 +47,7 @@ class MainActivity : AppCompatActivity() {
 
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+            v.setPadding(systemBars.left, 0, systemBars.right, systemBars.bottom)
             insets
         }
         parseIntent(intent)
@@ -66,9 +68,31 @@ class MainActivity : AppCompatActivity() {
 
     fun initView() {
         setupStatusBar()
+        setupNavigationBar()
         setupToolbar()
         setupViewPager()
         setupTabLayout()
+    }
+
+    private fun setupNavigationBar() {
+        val navigationBar = binding.navigationBar
+        // 创建导航项目
+        val homeIcon = ContextCompat.getDrawable(this, R.drawable.ic_launcher_foreground)
+        val searchIcon = ContextCompat.getDrawable(this, R.drawable.ic_launcher_foreground)
+        val profileIcon = ContextCompat.getDrawable(this, R.drawable.ic_launcher_foreground)
+        val settingsIcon = ContextCompat.getDrawable(this, R.drawable.ic_launcher_foreground)
+
+        val navItems = listOf(
+            AnimatedNavigationBar.NavItem(homeIcon, "首页"),
+            AnimatedNavigationBar.NavItem(searchIcon, "搜索"),
+            AnimatedNavigationBar.NavItem(profileIcon, "我的"),
+            AnimatedNavigationBar.NavItem(settingsIcon, "设置")
+        )
+
+        navigationBar.setNavItems(navItems)
+
+        // 可以设置初始选中项
+        navigationBar.selectItem(0)
     }
 
 
@@ -94,38 +118,41 @@ class MainActivity : AppCompatActivity() {
     private fun setupViewPager() {
         binding.vp.adapter = pagerAdapter
         //
-            binding.ivFace.apply {
-                adapter = object : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
-                    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
-                        val imageView = ImageView(parent.context).apply {
-                            layoutParams = ViewGroup.LayoutParams(
-                                ViewGroup.LayoutParams.MATCH_PARENT,
-                                ViewGroup.LayoutParams.MATCH_PARENT
-                            )
-                            scaleType = ImageView.ScaleType.CENTER_CROP
-                        }
-                        return object : RecyclerView.ViewHolder(imageView) {}
-                    }
-
-                    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
-                        val imageView = holder.itemView as ImageView
-                        // Replace R.drawable.image1, R.drawable.image2, etc. with your actual image resources
-                        val imageResources = listOf(
-                            R.drawable.avatar_gender,
-                            R.drawable.avatar_gender,
-                            R.drawable.avatar_gender,
-                            R.drawable.avatar_gender,
-                            R.drawable.avatar_gender,
-                            R.drawable.avatar_gender,
+        binding.ivFace.apply {
+            adapter = object : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+                override fun onCreateViewHolder(
+                    parent: ViewGroup,
+                    viewType: Int
+                ): RecyclerView.ViewHolder {
+                    val imageView = ImageView(parent.context).apply {
+                        layoutParams = ViewGroup.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.MATCH_PARENT
                         )
-                        imageView.setImageResource(imageResources[position])
+                        scaleType = ImageView.ScaleType.CENTER_CROP
                     }
-
-                    override fun getItemCount(): Int = 5
+                    return object : RecyclerView.ViewHolder(imageView) {}
                 }
-                orientation = ViewPager2.ORIENTATION_HORIZONTAL
-                offscreenPageLimit = 1
+
+                override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+                    val imageView = holder.itemView as ImageView
+                    // Replace R.drawable.image1, R.drawable.image2, etc. with your actual image resources
+                    val imageResources = listOf(
+                        R.drawable.avatar_gender,
+                        R.drawable.avatar_gender,
+                        R.drawable.avatar_gender,
+                        R.drawable.avatar_gender,
+                        R.drawable.avatar_gender,
+                        R.drawable.avatar_gender,
+                    )
+                    imageView.setImageResource(imageResources[position])
+                }
+
+                override fun getItemCount(): Int = 5
             }
+            orientation = ViewPager2.ORIENTATION_HORIZONTAL
+            offscreenPageLimit = 1
+        }
 
     }
 
@@ -146,7 +173,11 @@ class MainActivity : AppCompatActivity() {
 }
 
 class Page1Fragment : PageFragment() {
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View? {
         return inflater.inflate(R.layout.fragment1_sub_home_page, container, false)
     }
 
@@ -170,7 +201,11 @@ open class PageFragment : Fragment() {
     private lateinit var recyclerView: RecyclerView
     private val adapter = PageAdapter()
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View? {
         return inflater.inflate(R.layout.fragment_sub_home_page, container, false)
     }
 
@@ -196,7 +231,8 @@ open class PageFragment : Fragment() {
     }
 }
 
-class ViewPagerAdapter(fragmentActivity: FragmentActivity) : FragmentStateAdapter(fragmentActivity) {
+class ViewPagerAdapter(fragmentActivity: FragmentActivity) :
+    FragmentStateAdapter(fragmentActivity) {
 
     private val fragments = mutableListOf<PageFragment>()
 
@@ -221,7 +257,8 @@ class ViewPagerAdapter(fragmentActivity: FragmentActivity) : FragmentStateAdapte
 class PageAdapter : ListAdapter<String, PageAdapter.ViewHolder>(DiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        val view = LayoutInflater.from(parent.context).inflate(R.layout.fragment_sub_home_page_item, parent, false)
+        val view = LayoutInflater.from(parent.context)
+            .inflate(R.layout.fragment_sub_home_page_item, parent, false)
         return ViewHolder(view)
     }
 

@@ -3,12 +3,3 @@ plugins {
     alias(libs.plugins.android.application) apply false
     alias(libs.plugins.kotlin.android) apply false
 }
-
-// +1
-// +2
-// +3
-// +4
-// +5
-// +6
-// +7
-// +8
