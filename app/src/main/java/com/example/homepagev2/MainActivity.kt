@@ -23,7 +23,7 @@ import androidx.viewpager2.adapter.FragmentStateAdapter
 import androidx.viewpager2.widget.ViewPager2
 import com.androidrtc.chat.modules.homepage.bean.UserInformationViewModel
 import com.example.homepagev2.databinding.ActivityMainBinding
-import com.example.homepagev2.widget.AnimatedNavigationBar
+import com.example.homepagev2.widget.NavItem
 import com.google.android.material.tabs.TabLayoutMediator
 
 
@@ -44,12 +44,30 @@ class MainActivity : AppCompatActivity() {
         enableEdgeToEdge()
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
-
-        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, 0, systemBars.right, systemBars.bottom)
+
+            // 为根视图设置左右和顶部的 padding（如果需要）
+            binding.root.setPadding(
+                systemBars.left,
+                systemBars.top,  // 处理状态栏
+                systemBars.right,
+                0  // 底部由导航栏单独处理
+            )
+
+            // 为导航栏设置底部 padding
+            binding.navigationBar.setPadding(
+                binding.navigationBar.paddingLeft,
+                binding.navigationBar.paddingTop,
+                binding.navigationBar.paddingRight,
+                systemBars.bottom
+            )
+
+            // 返回 insets 以便其他视图也能处理
             insets
         }
+
+
         parseIntent(intent)
         initView()
         observeData()
@@ -76,17 +94,36 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupNavigationBar() {
         val navigationBar = binding.navigationBar
-        // 创建导航项目
-        val homeIcon = ContextCompat.getDrawable(this, R.drawable.ic_launcher_foreground)
-        val searchIcon = ContextCompat.getDrawable(this, R.drawable.ic_launcher_foreground)
-        val profileIcon = ContextCompat.getDrawable(this, R.drawable.ic_launcher_foreground)
-        val settingsIcon = ContextCompat.getDrawable(this, R.drawable.ic_launcher_foreground)
-
+        // 创建导航项
         val navItems = listOf(
-            AnimatedNavigationBar.NavItem(homeIcon, "首页"),
-            AnimatedNavigationBar.NavItem(searchIcon, "搜索"),
-            AnimatedNavigationBar.NavItem(profileIcon, "我的"),
-            AnimatedNavigationBar.NavItem(settingsIcon, "设置")
+            NavItem(
+                ContextCompat.getDrawable(this, R.drawable.ic_home),
+                ContextCompat.getDrawable(this, R.drawable.ic_home),
+                ContextCompat.getDrawable(this, R.drawable.ic_home),
+                "首页",
+                0
+            ),
+            NavItem(
+                ContextCompat.getDrawable(this, R.drawable.ic_home),
+                ContextCompat.getDrawable(this, R.drawable.ic_home),
+                ContextCompat.getDrawable(this, R.drawable.ic_home),
+                "消息",
+                5
+            ),
+            NavItem(
+                ContextCompat.getDrawable(this, R.drawable.ic_home),
+                ContextCompat.getDrawable(this, R.drawable.ic_home),
+                ContextCompat.getDrawable(this, R.drawable.ic_home),
+                "联系人",
+                0
+            ),
+            NavItem(
+                ContextCompat.getDrawable(this, R.drawable.ic_home),
+                ContextCompat.getDrawable(this, R.drawable.ic_home),
+                ContextCompat.getDrawable(this, R.drawable.ic_home),
+                "我的",
+                2
+            )
         )
 
         navigationBar.setNavItems(navItems)

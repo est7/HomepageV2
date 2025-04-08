@@ -13,20 +13,23 @@ import android.os.Bundle
 import android.os.Parcelable
 import android.util.AttributeSet
 import android.view.HapticFeedbackConstants
+import android.view.LayoutInflater
 import android.view.MotionEvent
-import android.view.View
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.animation.OvershootInterpolator
+import android.widget.LinearLayout
+import com.example.homepagev2.databinding.NavItemBinding
+
 
 class AnimatedNavigationBar @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
-) : View(context, attrs, defStyleAttr) {
-
-    // 导航项目
-    data class NavItem(val icon: Drawable?, val title: String)
+) : LinearLayout(context, attrs, defStyleAttr) {
 
     // 导航项目列表
     private val navItems = mutableListOf<NavItem>()
+
+    // 导航项视图绑定列表
+    private val navItemBindings = mutableListOf<NavItemBinding>()
 
     // 当前选中的项目索引
     private var selectedIndex = 0
@@ -56,26 +59,24 @@ class AnimatedNavigationBar @JvmOverloads constructor(
     private val curvePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.parseColor("#FF5722") // 曲线颜色
         style = Paint.Style.FILL
-        setShadowLayer(8f, 0f, 4f, Color.parseColor("#80000000")) // 添加阴影效果
+        setShadowLayer(8f, 0f, 4f, Color.parseColor("#000000")) // 添加阴影效果
     }
 
-    // 文字画笔
-    private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.WHITE
-        textSize = 30f
-        textAlign = Paint.Align.CENTER
-    }
+    // 选中项文字颜色
+    private val selectedTextColor = Color.parseColor("#FFD700") // 金色
 
-    // 选中项文字画笔
-    private val selectedTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#FFD700") // 金色
-        textSize = 30f
-        textAlign = Paint.Align.CENTER
-    }
+    // 普通项文字颜色
+    private val normalTextColor = Color.WHITE
+
+    // 选中项图标颜色
+    private val selectedIconColor = Color.parseColor("#FFD700") // 金色
+
+    // 普通项图标颜色
+    private val normalIconColor = Color.WHITE
 
     // 曲线动画器
     private val curveAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
-        duration = 300 // 动画持续时间
+        duration = 300
         interpolator = OvershootInterpolator(2f) // 弹性效果
         addUpdateListener {
             curveAnimationProgress = it.animatedValue as Float
@@ -83,14 +84,24 @@ class AnimatedNavigationBar @JvmOverloads constructor(
         }
     }
 
-    // 图标动画器
+    init {
+        // 设置为水平方向的LinearLayout
+        orientation = HORIZONTAL
+
+        // 设置ViewGroup的一些属性
+        setWillNotDraw(false) // 确保onDraw被调用
+        clipChildren = false // 允许子视图绘制超出边界
+    }
+
+    // 创建图标动画器
     private fun createIconAnimator(index: Int): ValueAnimator {
         return ValueAnimator.ofFloat(1f, 0.7f, 1.3f, 1f).apply {
-            duration = 400 // 动画持续时间
+            duration = 400
             interpolator = AccelerateDecelerateInterpolator()
             addUpdateListener {
-                iconScales[index] = it.animatedValue as Float
-                invalidate() // 重绘视图
+                val scale = it.animatedValue as Float
+                iconScales[index] = scale
+                updateItemScale(index, scale)
             }
             addListener(object : AnimatorListenerAdapter() {
                 override fun onAnimationEnd(animation: Animator) {
@@ -101,11 +112,73 @@ class AnimatedNavigationBar @JvmOverloads constructor(
         }
     }
 
+    // 更新指定项的缩放
+    private fun updateItemScale(index: Int, scale: Float) {
+        if (index < 0 || index >= navItemBindings.size) return
+
+        val binding = navItemBindings[index]
+        binding.navItemIcon.apply {
+            scaleX = scale
+            scaleY = scale
+        }
+    }
+
     // 设置导航项目
     fun setNavItems(items: List<NavItem>) {
         navItems.clear()
         navItems.addAll(items)
+
+        // 清除所有子视图和绑定
+        removeAllViews()
+        navItemBindings.clear()
+
+        // 为每个导航项创建子视图
+        items.forEachIndexed { index, item ->
+            val binding = createNavItemView(index, item)
+            navItemBindings.add(binding)
+            addView(binding.root)
+        }
+
+        // 更新选中状态
+        updateSelectedState()
+
+        requestLayout()
         invalidate()
+    }
+
+    // 创建单个导航项的视图
+    private fun createNavItemView(index: Int, item: NavItem): NavItemBinding {
+        val inflater = LayoutInflater.from(context)
+        val binding = NavItemBinding.inflate(inflater, this, false)
+
+        // 设置图标
+        binding.navItemIcon.setImageDrawable(item.defaultIcon)
+        binding.navItemIcon.setColorFilter(
+            if (index == selectedIndex) selectedIconColor else normalIconColor
+        )
+
+        // 设置文本
+        binding.navItemText.text = item.title
+        binding.navItemText.setTextColor(
+            if (index == selectedIndex) selectedTextColor else normalTextColor
+        )
+
+        // 设置徽章
+        if (item.badgeCount > 0) {
+            binding.navItemBadge.visibility = VISIBLE
+            binding.navItemBadge.text =
+                if (item.badgeCount > 99) "99+" else item.badgeCount.toString()
+        } else {
+            binding.navItemBadge.visibility = GONE
+        }
+
+        // 设置点击监听器
+        binding.root.setOnClickListener {
+            selectItem(index)
+            performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+        }
+
+        return binding
     }
 
     // 选择项目
@@ -118,6 +191,9 @@ class AnimatedNavigationBar @JvmOverloads constructor(
             // 立即更新选中索引
             selectedIndex = index
 
+            // 更新所有项的选中状态
+            updateSelectedState()
+
             // 重置并启动动画
             curveAnimationProgress = 0f
             curveAnimator.cancel()
@@ -126,6 +202,23 @@ class AnimatedNavigationBar @JvmOverloads constructor(
 
         // 无论是否已选中，都播放图标动画
         createIconAnimator(index).start()
+    }
+
+    // 更新所有项的选中状态
+    private fun updateSelectedState() {
+        navItemBindings.forEachIndexed { index, binding ->
+            val isSelected = index == selectedIndex
+
+            // 更新图标颜色
+            binding.navItemIcon.setColorFilter(
+                if (isSelected) selectedIconColor else normalIconColor
+            )
+
+            // 更新文字颜色
+            binding.navItemText.setTextColor(
+                if (isSelected) selectedTextColor else normalTextColor
+            )
+        }
     }
 
     override fun onDraw(canvas: Canvas) {
@@ -150,80 +243,6 @@ class AnimatedNavigationBar @JvmOverloads constructor(
 
         // 绘制顶部曲线
         drawSmoothTopCurve(canvas, animatedCenter, itemWidth, height)
-
-        // 绘制图标和文字
-        navItems.forEachIndexed { index, item ->
-            val centerX = (index + 0.5f) * itemWidth
-            val centerY = height * 0.5f
-
-            // 获取图标缩放值，默认为1.0
-            val scale = iconScales[index] ?: 1.0f
-
-            // 是否为选中项 - 立即反映选中状态
-            val isSelected = index == selectedIndex
-
-            // 计算过渡状态 - 用于平滑过渡颜色和大小
-            val transitionProgress = when {
-                index == selectedIndex -> curveAnimationProgress
-                index == previousIndex -> 1f - curveAnimationProgress
-                else -> 0f
-            }
-
-            // 绘制图标
-            item.icon?.let { icon ->
-                val iconSize = height * 0.3f * scale
-                val left = centerX - iconSize / 2
-                val top = centerY - iconSize / 2
-                val right = centerX + iconSize / 2
-                val bottom = centerY + iconSize / 2
-
-                // 保存画布状态
-                canvas.save()
-
-                // 设置图标颜色 - 使用过渡色
-                val selectedColor = Color.parseColor("#FFD700") // 金色
-                val normalColor = Color.WHITE
-
-                if (transitionProgress > 0) {
-                    // 计算过渡颜色
-                    val transitionColor =
-                        blendColors(normalColor, selectedColor, transitionProgress)
-                    icon.setTint(transitionColor)
-                } else {
-                    icon.setTint(if (isSelected) selectedColor else normalColor)
-                }
-
-                icon.setBounds(left.toInt(), top.toInt(), right.toInt(), bottom.toInt())
-                icon.draw(canvas)
-
-                // 恢复画布状态
-                canvas.restore()
-            }
-
-            // 绘制文字 - 使用过渡色
-            val textY = height * 0.8f
-            if (transitionProgress > 0) {
-                val transitionColor = blendColors(
-                    textPaint.color, selectedTextPaint.color, transitionProgress
-                )
-                val transitionPaint = Paint(textPaint).apply { color = transitionColor }
-                canvas.drawText(item.title, centerX, textY, transitionPaint)
-            } else {
-                canvas.drawText(
-                    item.title, centerX, textY, if (isSelected) selectedTextPaint else textPaint
-                )
-            }
-        }
-    }
-
-    // 颜色混合函数
-    private fun blendColors(color1: Int, color2: Int, ratio: Float): Int {
-        val inverseRatio = 1f - ratio
-        val a = (Color.alpha(color1) * inverseRatio) + (Color.alpha(color2) * ratio)
-        val r = (Color.red(color1) * inverseRatio) + (Color.red(color2) * ratio)
-        val g = (Color.green(color1) * inverseRatio) + (Color.green(color2) * ratio)
-        val b = (Color.blue(color1) * inverseRatio) + (Color.blue(color2) * ratio)
-        return Color.argb(a.toInt(), r.toInt(), g.toInt(), b.toInt())
     }
 
     // 绘制更尖锐的顶部曲线，类似椭三角形
@@ -279,6 +298,16 @@ class AnimatedNavigationBar @JvmOverloads constructor(
         canvas.drawPath(curvePath, curvePaint)
     }
 
+    // 颜色混合函数
+    private fun blendColors(color1: Int, color2: Int, ratio: Float): Int {
+        val inverseRatio = 1f - ratio
+        val a = (Color.alpha(color1) * inverseRatio) + (Color.alpha(color2) * ratio)
+        val r = (Color.red(color1) * inverseRatio) + (Color.red(color2) * ratio)
+        val g = (Color.green(color1) * inverseRatio) + (Color.green(color2) * ratio)
+        val b = (Color.blue(color1) * inverseRatio) + (Color.blue(color2) * ratio)
+        return Color.argb(a.toInt(), r.toInt(), g.toInt(), b.toInt())
+    }
+
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
@@ -315,8 +344,20 @@ class AnimatedNavigationBar @JvmOverloads constructor(
             selectedIndex = state.getInt("selectedIndex", 0)
             previousIndex = state.getInt("previousIndex", 0)
             super.onRestoreInstanceState(state.getParcelable("superState"))
+
+            // 恢复选中状态
+            updateSelectedState()
         } else {
             super.onRestoreInstanceState(state)
         }
     }
 }
+
+// 修改NavItem数据类，使用Drawable替代WebpDrawable
+data class NavItem(
+    val defaultIcon: Drawable?,
+    val selectedIcon: Drawable?,
+    val tapToScrollIcon: Drawable?,
+    val title: String,
+    val badgeCount: Int = 0
+)
