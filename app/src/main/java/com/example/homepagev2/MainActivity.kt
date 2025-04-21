@@ -108,7 +108,7 @@ class MainActivity : AppCompatActivity() {
             NavItem(
                 ContextCompat.getDrawable(this, R.drawable.ic_home),
                 ContextCompat.getDrawable(this, R.drawable.avatar_gender),
-                ContextCompat.getDrawable(this, R.drawable.ic_home),
+                ContextCompat.getDrawable(this, R.drawable.ic_launcher_foreground),
                 "消息",
                 false,
                 5
@@ -116,7 +116,7 @@ class MainActivity : AppCompatActivity() {
             NavItem(
                 ContextCompat.getDrawable(this, R.drawable.ic_home),
                 ContextCompat.getDrawable(this, R.drawable.avatar_gender),
-                ContextCompat.getDrawable(this, R.drawable.ic_home),
+                ContextCompat.getDrawable(this, R.drawable.ic_launcher_foreground),
                 "联系人",
                 false,
                 0
@@ -164,30 +164,6 @@ class MainActivity : AppCompatActivity() {
 
                 3 -> {
                     //我的
-                }
-            }
-        }
-
-        navigationBar.setOnDoubleClickItemListener { index, navItem ->
-            //show toast
-            Toast.makeText(this, "Double Clicked item $index", Toast.LENGTH_SHORT).show()
-            //根据不同的index，跳转到不同的页面
-            when (index) {
-                0 -> {
-                    //首页
-                }
-
-                1 -> {
-                    //消息
-                }
-
-                2 -> {
-                    //联系人
-                }
-
-                3 -> {
-                    //我的
-                    navigationBar.updateBadgeCount(index, 0)
                 }
             }
         }

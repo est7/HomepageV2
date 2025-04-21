@@ -1,6 +1,10 @@
 package com.example.homepagev2.widget
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
 import android.animation.AnimatorSet
+import android.animation.ObjectAnimator
+import android.animation.PropertyValuesHolder
 import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Canvas
@@ -10,14 +14,15 @@ import android.graphics.Path
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.os.Parcelable
-import android.os.SystemClock
 import android.util.AttributeSet
 import android.view.HapticFeedbackConstants
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.animation.OvershootInterpolator
+import android.widget.ImageView
 import android.widget.LinearLayout
 import com.example.homepagev2.databinding.NavItemBinding
 
@@ -249,15 +254,6 @@ class AnimatedNavigationBar @JvmOverloads constructor(
         this.onClickListener = listener
     }
 
-    /**
-     * @param Int 表示点击的项的索引
-     * @param NavItem 表示点击的项的数据模型
-     */
-    private var onDoubleClickListener: ((Int, NavItem) -> Unit)? = null
-    public fun setOnDoubleClickItemListener(listener: (Int, NavItem) -> Unit) {
-        this.onDoubleClickListener = listener
-    }
-
     public fun changeCurrentSelectedTabToScrollTapStatus() {
         navItems[selectedIndex].tapToScrollStatus = true
         updateSelectedState()
@@ -291,22 +287,6 @@ class AnimatedNavigationBar @JvmOverloads constructor(
             val isSelected = index == selectedIndex
             val isTapToScrollStatus = navItems[index].tapToScrollStatus
 
-            if (isSelected) {
-                binding.root.setOnDoubleClickListener {
-                    selectItem(index)
-                    onDoubleClickListener?.invoke(index, navItems[index])
-                    performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-                }
-            } else {
-                binding.root.setOnDoubleClickListener(null)
-                binding.root.setOnClickListener {
-                    selectItem(index)
-                    onClickListener?.invoke(index, navItems[index])
-                    performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-                }
-            }
-
-
             // 更新图标
             val drawable = if (isTapToScrollStatus) {
                 navItems[index].tapToScrollIcon
@@ -329,6 +309,55 @@ class AnimatedNavigationBar @JvmOverloads constructor(
                 if (isSelected) selectedTextColor else normalTextColor
             )
         }
+    }
+
+    // 在你的 Activity 或 Fragment 中
+    fun animateDrawableChange(imageView: ImageView, newDrawable: Drawable) {
+        // 保存当前的 drawable
+        val currentDrawable = imageView.drawable
+
+        // 创建一个新的 ImageView 用于动画
+        val newImageView = ImageView(imageView.context)
+        newImageView.setImageDrawable(newDrawable)
+        newImageView.layoutParams = imageView.layoutParams
+
+        // 将新的 ImageView 添加到当前 ImageView 的父容器中
+        val parent = imageView.parent as ViewGroup
+        val index = parent.indexOfChild(imageView)
+        parent.addView(newImageView, index + 1)
+
+        // 设置初始状态
+        newImageView.alpha = 0f
+        newImageView.translationY = imageView.height.toFloat()
+
+        // 创建并启动动画
+        val fadeOutAndMoveUp = ObjectAnimator.ofPropertyValuesHolder(
+            imageView,
+            PropertyValuesHolder.ofFloat(View.ALPHA, 1f, 0f),
+            PropertyValuesHolder.ofFloat(View.TRANSLATION_Y, 0f, -imageView.height.toFloat())
+        )
+
+        val fadeInAndMoveUp = ObjectAnimator.ofPropertyValuesHolder(
+            newImageView,
+            PropertyValuesHolder.ofFloat(View.ALPHA, 0f, 1f),
+            PropertyValuesHolder.ofFloat(View.TRANSLATION_Y, imageView.height.toFloat(), 0f)
+        )
+
+        val animatorSet = AnimatorSet()
+        animatorSet.playTogether(fadeOutAndMoveUp, fadeInAndMoveUp)
+        animatorSet.duration = 500 // 动画持续时间，单位毫秒
+
+        animatorSet.addListener(object : AnimatorListenerAdapter() {
+            override fun onAnimationEnd(animation: Animator) {
+                // 动画结束后，移除旧的 ImageView，并将新的 drawable 设置给原始 ImageView
+                parent.removeView(newImageView)
+                imageView.setImageDrawable(newDrawable)
+                imageView.alpha = 1f
+                imageView.translationY = 0f
+            }
+        })
+
+        animatorSet.start()
     }
 
     override fun onDraw(canvas: Canvas) {
@@ -472,41 +501,3 @@ data class NavItem(
     var tapToScrollStatus: Boolean,
     var badgeCount: Int = 0
 )
-
-
-fun View.setOnDoubleClickListener(
-    onDoubleClick: ((View) -> Unit)?,
-) {
-    if (onDoubleClick == null) return
-
-    var lastClickTime = 0L
-    var clickCount = 0
-
-    // 创建单击确认的 Runnable
-    val singleClickRunnable = Runnable {
-        if (clickCount == 1) {
-        }
-        clickCount = 0
-    }
-
-    // 设置点击监听器
-    this.setOnClickListener {
-        // 移除之前可能存在的单击确认 Runnable
-        this.removeCallbacks(singleClickRunnable)
-
-        val currentTime = SystemClock.elapsedRealtime()
-
-        if (currentTime - lastClickTime < 300) {
-            // 双击被触发
-            clickCount = 0
-            onDoubleClick?.invoke(this)
-        } else {
-            // 可能是单击的第一次点击
-            clickCount = 1
-            // 延迟执行单击确认
-            this.postDelayed(singleClickRunnable, 300)
-        }
-
-        lastClickTime = currentTime
-    }
-}
