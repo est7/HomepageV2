@@ -1,8 +1,11 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
     <style name="Base.Theme.HomepageV2" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your light theme here. -->
-        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+        <!-- Edge-to-edge, 沉浸式系统栏 -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <!-- 根据需要可切换浅色/深色状态栏图标 -->
+        <!-- <item name="android:windowLightStatusBar">true</item> -->
     </style>
 
     <style name="Theme.HomepageV2" parent="Base.Theme.HomepageV2" />

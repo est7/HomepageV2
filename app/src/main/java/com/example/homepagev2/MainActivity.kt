@@ -48,15 +48,15 @@ class MainActivity : AppCompatActivity() {
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
 
-            // 为根视图设置左右和顶部的 padding（如果需要）
+            // Edge-to-edge：内容绘制到状态栏下方，不为根视图添加顶部 padding
             binding.root.setPadding(
                 systemBars.left,
-                systemBars.top,  // 处理状态栏
+                0,
                 systemBars.right,
-                0  // 底部由导航栏单独处理
+                0
             )
 
-            // 为导航栏设置底部 padding
+            // 保留底部导航栏安全区，避免被遮挡
             binding.navigationBar.setPadding(
                 binding.navigationBar.paddingLeft,
                 binding.navigationBar.paddingTop,
@@ -64,7 +64,6 @@ class MainActivity : AppCompatActivity() {
                 systemBars.bottom
             )
 
-            // 返回 insets 以便其他视图也能处理
             insets
         }
 
@@ -359,5 +358,4 @@ class PageAdapter : ListAdapter<String, PageAdapter.ViewHolder>(DiffCallback()) 
         }
     }
 }
-
 
