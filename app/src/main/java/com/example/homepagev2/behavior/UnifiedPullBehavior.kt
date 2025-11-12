@@ -282,26 +282,24 @@ class UnifiedPullBehavior : CoordinatorLayout.Behavior<View> {
         })
     }
 
-    // 检查子视图是否可以向上滚动
-    private fun canChildScrollUp(view: View): Boolean {
-        return when (view) {
-            is ViewGroup -> {
-                // 递归查找可滚动的子视图
-                for (i in 0 until view.childCount) {
-                    val child = view.getChildAt(i)
-                    if (child.visibility == View.VISIBLE) {
-                        if (child is RecyclerView || child is NestedScrollView) {
-                            return child.canScrollVertically(-1)
-                        } else if (child is ViewGroup) {
-                            if (canChildScrollUp(child)) return true
-                        }
-                    }
-                }
-                false
+    // 检查任意可见后代是否可以按给定方向滚动（-1: 向上，1: 向下）
+    private fun anyDescendantCanScroll(view: View, direction: Int): Boolean {
+        if (view.visibility != View.VISIBLE) return false
+
+        if (view is ViewGroup) {
+            // 先深度优先遍历子树，优先检测更深层的可滚动后代
+            for (i in 0 until view.childCount) {
+                val child = view.getChildAt(i)
+                if (anyDescendantCanScroll(child, direction)) return true
             }
-            else -> view.canScrollVertically(-1)
         }
+
+        // 再检测当前 view 自身是否可滚动
+        return view.canScrollVertically(direction)
     }
+
+    private fun canChildScrollUp(view: View): Boolean = anyDescendantCanScroll(view, -1)
+    private fun canChildScrollDown(view: View): Boolean = anyDescendantCanScroll(view, 1)
 
     // ===== 嵌套滚动处理 (保留原有的 Content 区域滚动逻辑) =====
 
@@ -371,7 +369,9 @@ class UnifiedPullBehavior : CoordinatorLayout.Behavior<View> {
     ) {
         val targetName = target.javaClass.simpleName
         val typeName = if (type == ViewCompat.TYPE_TOUCH) "TOUCH" else "NON_TOUCH"
-        val canScrollUp = target.canScrollVertically(-1)
+        // 注意：target 可能是 ViewPager2 内部的 RecyclerView，
+        // 为了避免误判（比如先命中水平的 ViewPager2 RV），这里递归检查任意可见后代
+        val canScrollUp = canChildScrollUp(target)
 
         Log.d(TAG, "onNestedPreScroll: target=$targetName, dx=$dx, dy=$dy, type=$typeName, " +
                 "currentTransY=${child.translationY}, canScrollUp=$canScrollUp")
