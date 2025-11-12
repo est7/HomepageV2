@@ -12,7 +12,8 @@
         android:layout_height="match_parent">
 
         <!--face部分-->
-        <FrameLayout
+        <com.example.homepagev2.widget.NestedScrollFrameLayout
+            android:id="@+id/face_container"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             app:layout_behavior=".behavior.FaceBehavior">
@@ -30,7 +31,7 @@
                 android:id="@+id/v_mask"
                 android:layout_width="match_parent"
                 android:layout_height="500dp" />
-        </FrameLayout>
+        </com.example.homepagev2.widget.NestedScrollFrameLayout>
         <!--face部分-->
 
         <!--TopBar部分-->
@@ -119,7 +120,7 @@
             android:layout_height="match_parent"
             android:orientation="vertical"
             android:translationY="@dimen/content_trans_y"
-            app:layout_behavior=".behavior.ContentBehavior">
+            app:layout_behavior=".behavior.UnifiedPullBehavior">
 
             <com.google.android.material.tabs.TabLayout
                 android:id="@+id/stl"

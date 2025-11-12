@@ -18,7 +18,7 @@ import com.example.homepagev2.R
  */
 class ContentBehavior : CoordinatorLayout.Behavior<View> {
     companion object {
-        private const val ANIM_DURATION_FRACTION = 500L
+        private const val ANIM_DURATION_FRACTION = 200L
     }
 
     private var topBarHeight: Int = 0 //topBar内容高度
