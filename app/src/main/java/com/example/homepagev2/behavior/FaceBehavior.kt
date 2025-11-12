@@ -5,6 +5,7 @@ import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.util.AttributeSet
+import android.util.Log
 import android.view.View
 import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.core.math.MathUtils
@@ -16,6 +17,9 @@ import com.example.homepagev2.R
  * @function: face部分的Behavior
  */
 class FaceBehavior(context: Context, attrs: AttributeSet?) : CoordinatorLayout.Behavior<View>(context, attrs) {
+    companion object {
+        private const val TAG = "FaceBehavior"
+    }
     private var topBarHeight: Int = 0 //topBar内容高度
     private var contentTransY: Float = 0f //滑动内容初始化TransY
     private var downEndY: Float = 0f //下滑时终点值
@@ -79,6 +83,8 @@ class FaceBehavior(context: Context, attrs: AttributeSet?) : CoordinatorLayout.B
         )) / (contentTransY - topBarHeight)
         val downPro = (downEndY - MathUtils.clamp(dependency.translationY, contentTransY, downEndY)) / (downEndY - contentTransY)
 
+        Log.d(TAG, "onDependentViewChanged: dependencyTransY=${dependency.translationY}, upPro=$upPro, downPro=$downPro")
+
         val imageView = child.findViewById<ViewPager2>(R.id.iv_face)
         val maskView = child.findViewById<View>(R.id.v_mask)
 
@@ -98,6 +104,8 @@ class FaceBehavior(context: Context, attrs: AttributeSet?) : CoordinatorLayout.B
         //根据Content上滑百分比设置图片和蒙层的透明度
         imageView.alpha = 1 - upPro
         maskView.alpha = upPro
+
+        Log.d(TAG, "  - Face: scale=$scale, transY=${imageView.translationY}, alpha=${imageView.alpha}")
 
         return true
     }

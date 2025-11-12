@@ -2,6 +2,7 @@ package com.example.homepagev2.widget
 
 import android.content.Context
 import android.util.AttributeSet
+import android.util.Log
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
@@ -20,6 +21,10 @@ class NestedScrollFrameLayout @JvmOverloads constructor(
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0
 ) : FrameLayout(context, attrs, defStyleAttr), NestedScrollingChild3 {
+
+    companion object {
+        private const val TAG = "NestedScrollFrame"
+    }
 
     private val scrollingChildHelper = NestedScrollingChildHelper(this)
     private var lastTouchY = 0f
@@ -49,8 +54,11 @@ class NestedScrollFrameLayout @JvmOverloads constructor(
                 isDraggingVertically = false
                 isDraggingHorizontally = false
 
+                Log.d(TAG, "onInterceptTouchEvent DOWN: x=${ev.x}, y=${ev.y}")
+
                 // 开始嵌套滚动
-                startNestedScroll(ViewCompat.SCROLL_AXIS_VERTICAL, ViewCompat.TYPE_TOUCH)
+                val started = startNestedScroll(ViewCompat.SCROLL_AXIS_VERTICAL, ViewCompat.TYPE_TOUCH)
+                Log.d(TAG, "  - startNestedScroll: $started")
             }
 
             MotionEvent.ACTION_MOVE -> {
@@ -62,17 +70,23 @@ class NestedScrollFrameLayout @JvmOverloads constructor(
                     if (abs(deltaY) > touchSlop || abs(deltaX) > touchSlop) {
                         if (abs(deltaY) > abs(deltaX)) {
                             isDraggingVertically = true
+                            Log.d(TAG, "onInterceptTouchEvent MOVE: Detected VERTICAL drag, deltaY=$deltaY")
                             // 下拉时拦截
                             if (deltaY > touchSlop) {
                                 isBeingDragged = true
                                 lastTouchY = ev.y
                                 parent?.requestDisallowInterceptTouchEvent(true)
+                                Log.d(TAG, "  - Intercepting: DOWN pull detected")
                                 return true
+                            } else {
+                                Log.d(TAG, "  - Not intercepting: UP pull")
                             }
                         } else {
                             isDraggingHorizontally = true
+                            Log.d(TAG, "onInterceptTouchEvent MOVE: Detected HORIZONTAL drag, deltaX=$deltaX")
                             // 水平滑动，不拦截
                             stopNestedScroll(ViewCompat.TYPE_TOUCH)
+                            Log.d(TAG, "  - stopNestedScroll called")
                         }
                     }
                 }
@@ -83,6 +97,7 @@ class NestedScrollFrameLayout @JvmOverloads constructor(
             }
 
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                Log.d(TAG, "onInterceptTouchEvent UP/CANCEL: isBeingDragged=$isBeingDragged")
                 isBeingDragged = false
                 isDraggingVertically = false
                 isDraggingHorizontally = false
