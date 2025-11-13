@@ -6,9 +6,14 @@ import android.view.View
 import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.core.math.MathUtils
 import com.example.homepagev2.R
+import kotlin.math.roundToInt
 
 /**
- * @function:  TitleBar部分的Behavior
+ * TitleBar 区域的行为控制。
+ * - 位置：始终紧贴 ll_content 顶部（top = ll_content.y - titleBar.height）。
+ * - 渐显：仅在折叠区间的一半内计算透明度（start = (contentTransY + topBarHeight) / 2），
+ *   让 TitleBar 在上滑到一半后才逐步显现，避免过早遮挡内容。
+ * - 像素对齐：使用 roundToInt() 布局，避免 1px 抖动/缝隙。
  */
 class TitleBarBehavior : CoordinatorLayout.Behavior<View> {
     private var contentTransY: Float = 0f //滑动内容初始化TransY
@@ -27,9 +32,9 @@ class TitleBarBehavior : CoordinatorLayout.Behavior<View> {
     }
 
     override fun onDependentViewChanged(parent: CoordinatorLayout, child: View, dependency: View): Boolean {
-        //调整TitleBar位置要紧贴Content顶部上面
+        // 调整 TitleBar 位置要紧贴 Content 顶部上面
         adjustPosition(parent, child, dependency)
-        //这里只计算Content上滑范围一半的百分比
+        // 这里只计算 Content 上滑范围一半的百分比
         val start = (contentTransY + topBarHeight) / 2
         val upPro =
             (contentTransY - MathUtils.clamp(dependency.translationY, start, contentTransY)) / (contentTransY - start)
@@ -38,10 +43,10 @@ class TitleBarBehavior : CoordinatorLayout.Behavior<View> {
     }
 
     override fun onLayoutChild(parent: CoordinatorLayout, child: View, layoutDirection: Int): Boolean {
-        //找到Content的依赖引用
+        // 找到 Content 的依赖引用
         val dependency = parent.getDependencies(child).find { it.id == R.id.ll_content }
         return if (dependency != null) {
-            //调整TitleBar位置要紧贴Content顶部上面
+            // 调整 TitleBar 位置要紧贴 Content 顶部上面
             adjustPosition(parent, child, dependency)
             true
         } else {
@@ -52,9 +57,9 @@ class TitleBarBehavior : CoordinatorLayout.Behavior<View> {
     private fun adjustPosition(parent: CoordinatorLayout, child: View, dependency: View) {
         val lp = child.layoutParams as CoordinatorLayout.LayoutParams
         val left = parent.paddingLeft + lp.leftMargin
-        val top = (dependency.y - child.measuredHeight + lp.topMargin).toInt()
+        val top = (dependency.y - child.measuredHeight + lp.topMargin).roundToInt()
         val right = child.measuredWidth + left - parent.paddingRight - lp.rightMargin
-        val bottom = (dependency.y - lp.bottomMargin).toInt()
+        val bottom = (dependency.y - lp.bottomMargin).roundToInt()
         child.layout(left, top, right, bottom)
     }
 }

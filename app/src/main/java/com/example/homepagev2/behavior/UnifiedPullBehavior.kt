@@ -3,7 +3,6 @@ package com.example.homepagev2.behavior
 import android.animation.ValueAnimator
 import android.content.Context
 import android.util.AttributeSet
-import android.util.Log
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
@@ -15,11 +14,20 @@ import androidx.core.widget.NestedScrollView
 import androidx.recyclerview.widget.RecyclerView
 import com.example.homepagev2.R
 import kotlin.math.abs
-import kotlin.math.sign
 
 /**
- * 统一的下拉放大 Behavior
- * 支持在 Face 区域和 Content 区域触发下拉放大效果
+ * 统一的下拉放大/回弹 Behavior（用于 ll_content）。
+ * 主要职责：
+ * - 负责 ll_content 的 translationY（范围：topBarHeight..downEndY），
+ *   上滑收起到 topBarHeight，下拉展开到 downEndY；
+ * - 支持在 Face 区域、UserInfo、TitleBar、Content 内部触发下拉手势（通过 onStartNestedScroll 接受它们的垂直滚动），
+ *   并在内容处于顶部时（不可再向上滚动）承接下拉；
+ * - 下拉阻尼（PULL_RESISTANCE_FACTOR）与 Fling 过度滑动的处理，结束后自动回弹到 contentTransY；
+ * - onMeasureChild：按屏幕高度减去 TopBar 实际高度为 ll_content 测量可用高度。
+ *
+ * 说明：
+ * - Face 的缩放/贴合由 FaceBehavior 完成；本 Behavior 只管理内容整体的位移与触摸/嵌套事件协调。
+ * - 通过 anyDescendantCanScroll 递归检查可滚动性，避免 ViewPager2 内部 RV 等被误判。
  */
 class UnifiedPullBehavior : CoordinatorLayout.Behavior<View> {
     companion object {
@@ -31,8 +39,8 @@ class UnifiedPullBehavior : CoordinatorLayout.Behavior<View> {
     private var topBarHeight: Int = 0
     private var contentTransY: Float = 0f
     private var downEndY: Float = 0f
-    private lateinit var restoreAnimator: ValueAnimator
-    private lateinit var flingAnimator: ValueAnimator
+    private var restoreAnimator: ValueAnimator
+    private var flingAnimator: ValueAnimator
     private lateinit var contentView: View
     private var flingFromCollaps = false
 
@@ -311,18 +319,11 @@ class UnifiedPullBehavior : CoordinatorLayout.Behavior<View> {
         axes: Int,
         type: Int
     ): Boolean {
-        val targetName = target.javaClass.simpleName
-        val directChildName = directTargetChild.javaClass.simpleName
-        val directChildId = directTargetChild.id
-        val axesName = if (axes == ViewCompat.SCROLL_AXIS_VERTICAL) "VERTICAL" else "HORIZONTAL"
-        val typeName = if (type == ViewCompat.TYPE_TOUCH) "TOUCH" else "NON_TOUCH"
-
-        val accepted = (directTargetChild.id == R.id.ll_content || directTargetChild.id == R.id.face_container) &&
+        val accepted = (directTargetChild.id == R.id.ll_content ||
+                directTargetChild.id == R.id.face_container ||
+                directTargetChild.id == R.id.ll_userinfo ||
+                directTargetChild.id == R.id.cls_title_bar_container) &&
                 axes == ViewCompat.SCROLL_AXIS_VERTICAL
-
-        Log.d(TAG, "onStartNestedScroll: target=$targetName, directChild=$directChildName(id=$directChildId), " +
-                "axes=$axesName, type=$typeName, accepted=$accepted, currentTransY=${child.translationY}")
-
         return accepted
     }
 
@@ -334,25 +335,16 @@ class UnifiedPullBehavior : CoordinatorLayout.Behavior<View> {
         axes: Int,
         type: Int
     ) {
-        Log.d(TAG, "onNestedScrollAccepted: currentTransY=${child.translationY}")
         if (restoreAnimator.isStarted) {
             restoreAnimator.cancel()
-            Log.d(TAG, "  - Canceled restoreAnimator")
         }
         if (flingAnimator.isStarted) {
             flingAnimator.cancel()
-            Log.d(TAG, "  - Canceled flingAnimator")
         }
     }
 
     override fun onStopNestedScroll(coordinatorLayout: CoordinatorLayout, child: View, target: View, type: Int) {
-        val targetName = target.javaClass.simpleName
-        val typeName = if (type == ViewCompat.TYPE_TOUCH) "TOUCH" else "NON_TOUCH"
         val shouldRestore = child.translationY > contentTransY
-
-        Log.d(TAG, "onStopNestedScroll: target=$targetName, type=$typeName, currentTransY=${child.translationY}, " +
-                "contentTransY=$contentTransY, shouldRestore=$shouldRestore")
-
         if (shouldRestore) {
             restore()
         }
@@ -367,43 +359,33 @@ class UnifiedPullBehavior : CoordinatorLayout.Behavior<View> {
         consumed: IntArray,
         type: Int
     ) {
-        val targetName = target.javaClass.simpleName
-        val typeName = if (type == ViewCompat.TYPE_TOUCH) "TOUCH" else "NON_TOUCH"
         // 注意：target 可能是 ViewPager2 内部的 RecyclerView，
         // 为了避免误判（比如先命中水平的 ViewPager2 RV），这里递归检查任意可见后代
         val canScrollUp = canChildScrollUp(target)
 
-        Log.d(TAG, "onNestedPreScroll: target=$targetName, dx=$dx, dy=$dy, type=$typeName, " +
-                "currentTransY=${child.translationY}, canScrollUp=$canScrollUp")
 
         val transY = child.translationY - dy
 
         if (type == ViewCompat.TYPE_NON_TOUCH && !flingFromCollaps && dy <= 0) {
-            Log.d(TAG, "  - Skip: NON_TOUCH and not flingFromCollaps")
             return
         }
 
         // 处理上滑
         if (dy > 0) {
-            Log.d(TAG, "  - Handling UP scroll: transY=$transY, topBarHeight=$topBarHeight")
             if (transY >= topBarHeight) {
                 translationByConsume(child, transY, consumed, dy.toFloat())
-                Log.d(TAG, "    - Set transY=$transY, consumed=${consumed[1]}")
             } else {
                 translationByConsume(child, topBarHeight.toFloat(), consumed, (child.translationY - topBarHeight))
-                Log.d(TAG, "    - Set transY=$topBarHeight (clamped), consumed=${consumed[1]}")
             }
         }
 
         // 处理下滑
         if (dy < 0 && !canScrollUp) {
-            Log.d(TAG, "  - Handling DOWN scroll")
             // Fling 处理
             if (type == ViewCompat.TYPE_NON_TOUCH && transY >= contentTransY && flingFromCollaps) {
                 flingFromCollaps = false
                 translationByConsume(child, contentTransY, consumed, dy.toFloat())
                 stopViewScroll(target)
-                Log.d(TAG, "    - Fling stopped at contentTransY=$contentTransY")
                 return
             }
 
@@ -418,16 +400,12 @@ class UnifiedPullBehavior : CoordinatorLayout.Behavior<View> {
             val dampenedDy = dy * resistance
             val newTransY = (currentTransY - dampenedDy).coerceIn(topBarHeight.toFloat(), downEndY)
 
-            Log.d(TAG, "    - Dampened: resistance=$resistance, dampenedDy=$dampenedDy, newTransY=$newTransY")
-
             if (newTransY != currentTransY) {
                 translationByConsume(child, newTransY, consumed, (currentTransY - newTransY))
-                Log.d(TAG, "    - Set transY=$newTransY, consumed=${consumed[1]}")
             }
 
             if (newTransY >= downEndY) {
                 stopViewScroll(target)
-                Log.d(TAG, "    - Reached downEndY, stopped scroll")
             }
         }
     }
@@ -462,7 +440,6 @@ class UnifiedPullBehavior : CoordinatorLayout.Behavior<View> {
     }
 
     private fun restore() {
-        Log.d(TAG, "restore: from=${contentView.translationY} to=$contentTransY")
         if (restoreAnimator.isStarted) {
             restoreAnimator.cancel()
             restoreAnimator.removeAllListeners()

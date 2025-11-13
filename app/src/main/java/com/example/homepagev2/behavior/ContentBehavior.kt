@@ -3,7 +3,6 @@ package com.example.homepagev2.behavior
 import android.animation.ValueAnimator
 import android.content.Context
 import android.util.AttributeSet
-import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.widget.OverScroller
@@ -14,7 +13,11 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.homepagev2.R
 
 /**
- * @function: Content部分的Behavior
+ * Content 部分的 Behavior（旧实现，当前布局使用 UnifiedPullBehavior）。
+ * 职责与 UnifiedPullBehavior 类似：负责 ll_content 的上/下滑位移、回弹与部分 fling 处理；
+ * 但不处理 Face 的缩放粘合，也不处理更复杂的手势与阻尼策略。
+ *
+ * 目前在主布局中未使用，保留作参考或回退方案。
  */
 class ContentBehavior : CoordinatorLayout.Behavior<View> {
     companion object {
