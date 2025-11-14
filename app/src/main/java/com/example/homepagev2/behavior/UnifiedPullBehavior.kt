@@ -3,6 +3,7 @@ package com.example.homepagev2.behavior
 import android.animation.ValueAnimator
 import android.content.Context
 import android.util.AttributeSet
+import android.graphics.Rect
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
@@ -44,6 +45,7 @@ class UnifiedPullBehavior : CoordinatorLayout.Behavior<View> {
     private var animationTargetView: View? = null
     private var anchorsInitialized = false
     private var flingFromCollaps = false
+    private var isHeaderDrag = false
 
     // 触摸事件处理
     private var isBeingDragged = false
@@ -156,13 +158,8 @@ class UnifiedPullBehavior : CoordinatorLayout.Behavior<View> {
                 }
                 velocityTracker?.addMovement(ev)
 
-                // 停止正在进行的动画
-                if (restoreAnimator.isStarted) {
-                    restoreAnimator.cancel()
-                }
-                if (flingAnimator.isStarted) {
-                    flingAnimator.cancel()
-                }
+                // 记录本次手势是否从“头部区域”开始（face/userinfo/title_bar）
+                isHeaderDrag = isInHeaderArea(parent, ev)
             }
 
             MotionEvent.ACTION_MOVE -> {
@@ -185,10 +182,38 @@ class UnifiedPullBehavior : CoordinatorLayout.Behavior<View> {
                 // 只有在明确是竖向滑动时才拦截
                 if (isDraggingVertically) {
                     val isDownPull = deltaY > touchSlop
+                    val isUpScroll = deltaY < -touchSlop
+                    val atInitialAnchor = anchorsInitialized && kotlin.math.abs(child.translationY - contentTransY) < 1f
                     val isContentAtTop = !canChildScrollUp(child)
+                    val canCollapseMore = child.translationY > topBarHeight
 
-                    // 拦截条件：下拉 且 内容在顶部
-                    if (isDownPull && isContentAtTop && anchorsInitialized) {
+                    // 规则：
+                    // - 初始状态：不论何处向下拉，均拦截以触发 Face 放大；向上滑按原逻辑处理（不在此分支决定）。
+                    // - 非初始状态：保持原约束（仅当内容在顶部时承接下拉）。
+                    val shouldInterceptDown = if (atInitialAnchor) {
+                        isDownPull
+                    } else {
+                        isDownPull && isContentAtTop
+                    }
+
+                    // 上滑拦截规则（仅针对从头部区域开始的手势）：
+                    // - 内容本身已不能再向上滚动（列表在顶部），且还有折叠空间（translationY > topBarHeight），
+                    //   并且本次手势起点在 face/ll_userinfo/title_bar 区域内。
+                    val shouldInterceptUp = isHeaderDrag &&
+                        anchorsInitialized &&
+                        isUpScroll &&
+                        isContentAtTop &&
+                        canCollapseMore
+
+                    if ((shouldInterceptDown || shouldInterceptUp) && anchorsInitialized) {
+                        // 只有在真正开始新的拖拽手势时，才中断当前动画；
+                        // 简单点击（仅有 DOWN/UP）不应打断回弹过程。
+                        if (restoreAnimator.isStarted) {
+                            restoreAnimator.cancel()
+                        }
+                        if (flingAnimator.isStarted) {
+                            flingAnimator.cancel()
+                        }
                         isBeingDragged = true
                         lastTouchY = ev.y // 更新起始点，避免跳跃
                         return true
@@ -197,11 +222,8 @@ class UnifiedPullBehavior : CoordinatorLayout.Behavior<View> {
             }
 
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                isBeingDragged = false
-                isDraggingVertically = false
-                isDraggingHorizontally = false
-                velocityTracker?.recycle()
-                velocityTracker = null
+                // 触摸结束的收尾逻辑统一放在 onTouchEvent 中处理，
+                // 这里不重置 isBeingDragged，避免打断 fling 计算。
             }
         }
 
@@ -241,9 +263,11 @@ class UnifiedPullBehavior : CoordinatorLayout.Behavior<View> {
                     velocityTracker?.computeCurrentVelocity(1000, maximumVelocity)
                     val velocityY = velocityTracker?.yVelocity ?: 0f
 
-                    // 处理 fling
+                    // 处理 fling（沿用最初的简单实现）
                     if (abs(velocityY) > minimumVelocity) {
-                        if (anchorsInitialized) handleFling(child, velocityY)
+                        if (anchorsInitialized) {
+                            handleFling(child, velocityY)
+                        }
                     } else {
                         // 回弹到初始位置（仅在下拉状态时才回弹）
                         if (anchorsInitialized && child.translationY > contentTransY) {
@@ -277,8 +301,8 @@ class UnifiedPullBehavior : CoordinatorLayout.Behavior<View> {
     private fun handleFling(child: View, velocityY: Float) {
         val currentTransY = child.translationY
 
-        // 计算 fling 的目标位置
-        val flingDistance = (velocityY / 2000f) * 300f // 简化的 fling 距离计算
+        // 计算 fling 的目标位置（恢复为最初的简化实现）
+        val flingDistance = (velocityY / 2000f) * 300f
         val targetTransY = (currentTransY + flingDistance).coerceIn(
             topBarHeight.toFloat(),
             downEndY
@@ -299,8 +323,6 @@ class UnifiedPullBehavior : CoordinatorLayout.Behavior<View> {
                 animation.cancel()
             }
         }
-        flingAnimator.start()
-
         // fling 结束后回弹（仅在下拉状态时才回弹）
         flingAnimator.addListener(object : android.animation.AnimatorListenerAdapter() {
             override fun onAnimationEnd(animation: android.animation.Animator) {
@@ -309,6 +331,7 @@ class UnifiedPullBehavior : CoordinatorLayout.Behavior<View> {
                 }
             }
         })
+        flingAnimator.start()
     }
 
     // 检查任意可见后代是否可以按给定方向滚动（-1: 向上，1: 向下）
@@ -329,6 +352,22 @@ class UnifiedPullBehavior : CoordinatorLayout.Behavior<View> {
 
     private fun canChildScrollUp(view: View): Boolean = anyDescendantCanScroll(view, -1)
     private fun canChildScrollDown(view: View): Boolean = anyDescendantCanScroll(view, 1)
+
+    private val headerHitRect = Rect()
+
+    private fun isInHeaderArea(parent: CoordinatorLayout, ev: MotionEvent): Boolean {
+        return isPointInsideView(parent.findViewById(R.id.face_container), ev) ||
+            isPointInsideView(parent.findViewById(R.id.ll_userinfo), ev) ||
+            isPointInsideView(parent.findViewById(R.id.cls_title_bar_container), ev)
+    }
+
+    private fun isPointInsideView(view: View?, ev: MotionEvent): Boolean {
+        if (view == null || view.visibility != View.VISIBLE) return false
+        view.getHitRect(headerHitRect)
+        val x = ev.x.toInt()
+        val y = ev.y.toInt()
+        return headerHitRect.contains(x, y)
+    }
 
     // ===== 嵌套滚动处理 (保留原有的 Content 区域滚动逻辑) =====
 
@@ -356,12 +395,6 @@ class UnifiedPullBehavior : CoordinatorLayout.Behavior<View> {
         axes: Int,
         type: Int
     ) {
-        if (restoreAnimator.isStarted) {
-            restoreAnimator.cancel()
-        }
-        if (flingAnimator.isStarted) {
-            flingAnimator.cancel()
-        }
     }
 
     override fun onStopNestedScroll(coordinatorLayout: CoordinatorLayout, child: View, target: View, type: Int) {
@@ -380,12 +413,25 @@ class UnifiedPullBehavior : CoordinatorLayout.Behavior<View> {
         consumed: IntArray,
         type: Int
     ) {
+        if (dy != 0) {
+            // 仅在真的发生滚动时才终止回弹/惯性动画；
+            // 避免 NestedScroll 在 ACTION_DOWN 即被接受时就打断动画。
+            if (restoreAnimator.isStarted) {
+                restoreAnimator.cancel()
+            }
+            if (flingAnimator.isStarted) {
+                flingAnimator.cancel()
+            }
+        }
+
+        // 不在此处因动画而统一吞滚动，保持原有不拦截行为
         // 注意：target 可能是 ViewPager2 内部的 RecyclerView，
         // 为了避免误判（比如先命中水平的 ViewPager2 RV），这里递归检查任意可见后代
         val canScrollUp = canChildScrollUp(target)
 
 
         val transY = child.translationY - dy
+        val atInitialAnchor = anchorsInitialized && kotlin.math.abs(child.translationY - contentTransY) < 1f
 
         if (type == ViewCompat.TYPE_NON_TOUCH && !flingFromCollaps && dy <= 0) {
             return
@@ -401,7 +447,7 @@ class UnifiedPullBehavior : CoordinatorLayout.Behavior<View> {
         }
 
         // 处理下滑
-        if (dy < 0 && !canScrollUp) {
+        if (dy < 0 && (!canScrollUp || atInitialAnchor)) {
             // Fling 处理
             if (type == ViewCompat.TYPE_NON_TOUCH && transY >= contentTransY && flingFromCollaps) {
                 flingFromCollaps = false

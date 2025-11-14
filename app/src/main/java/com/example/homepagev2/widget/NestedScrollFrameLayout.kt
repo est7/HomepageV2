@@ -51,8 +51,8 @@ open class NestedScrollFrameLayout @JvmOverloads constructor(
                 isBeingDragged = false
                 isDraggingVertically = false
                 isDraggingHorizontally = false
-                // 开始嵌套滚动
-                val started = startNestedScroll(ViewCompat.SCROLL_AXIS_VERTICAL, ViewCompat.TYPE_TOUCH)
+                // 预先声明垂直方向的嵌套滚动能力；实际是否参与由父级决定
+                startNestedScroll(ViewCompat.SCROLL_AXIS_VERTICAL, ViewCompat.TYPE_TOUCH)
             }
 
             MotionEvent.ACTION_MOVE -> {
@@ -64,14 +64,15 @@ open class NestedScrollFrameLayout @JvmOverloads constructor(
                     if (abs(deltaY) > touchSlop || abs(deltaX) > touchSlop) {
                         if (abs(deltaY) > abs(deltaX)) {
                             isDraggingVertically = true
-                            // 下拉时拦截
-                            if (deltaY > touchSlop) {
-                                isBeingDragged = true
-                                lastTouchY = ev.y
-                                parent?.requestDisallowInterceptTouchEvent(true)
-                                return true
-                            } else {
+                            // 垂直方向（无论上/下）都拦截，转交给父级 NestedScroll
+                            isBeingDragged = true
+                            lastTouchY = ev.y
+                            // 确保一旦确认是纵向拖拽，就重新声明嵌套滚动（防止 DOWN 时父级尚未准备好）
+                            if (!hasNestedScrollingParent(ViewCompat.TYPE_TOUCH)) {
+                                startNestedScroll(ViewCompat.SCROLL_AXIS_VERTICAL, ViewCompat.TYPE_TOUCH)
                             }
+                            parent?.requestDisallowInterceptTouchEvent(true)
+                            return true
                         } else {
                             isDraggingHorizontally = true
                             // 水平滑动，不拦截

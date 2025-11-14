@@ -82,7 +82,9 @@ class FaceBehavior(context: Context, attrs: AttributeSet?) :
                 colors[1] = getTranslucentColor(0.6f, Color.parseColor("#4D000000"))
             }
         }
-        drawable = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, colors)
+//        drawable = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, colors)
+        drawable = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(Color.BLACK, Color.TRANSPARENT))
+
     }
 
     override fun layoutDependsOn(

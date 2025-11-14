@@ -47,8 +47,7 @@ class TitleBarBehavior : CoordinatorLayout.Behavior<View> {
             (contentTransY - MathUtils.clamp(dependency.translationY, start, contentTransY)) / (contentTransY - start)
         } else 0f
         child.alpha = 1 - upPro
-        // 将 TitleBar 轻微上移，形成与 face 的叠压效果
-        child.translationY = -overlapOffsetY
+        // 不使用 translationY 实现叠压：改由 layout 阶段整体上移（见 adjustPosition）。
         return true
     }
 
@@ -56,10 +55,8 @@ class TitleBarBehavior : CoordinatorLayout.Behavior<View> {
         // 找到 Content 的依赖引用
         val dependency = parent.getDependencies(child).find { it.id == R.id.ll_content }
         return if (dependency != null) {
-            // 调整 TitleBar 位置要紧贴 Content 顶部上面
+            // 调整 TitleBar 位置要紧贴 Content 顶部上面（上移在 adjustPosition 中处理）
             adjustPosition(parent, child, dependency)
-            // 初始布局同样应用上移偏移
-            child.translationY = -overlapOffsetY
             // 捕获初始 contentTransY
             if (contentTransY.isNaN()) {
                 contentTransY = dependency.translationY
@@ -73,9 +70,12 @@ class TitleBarBehavior : CoordinatorLayout.Behavior<View> {
     private fun adjustPosition(parent: CoordinatorLayout, child: View, dependency: View) {
         val lp = child.layoutParams as CoordinatorLayout.LayoutParams
         val left = parent.paddingLeft + lp.leftMargin
-        val top = (dependency.y - child.measuredHeight + lp.topMargin).roundToInt()
-        val right = child.measuredWidth + left - parent.paddingRight - lp.rightMargin
+        val overlap = overlapOffsetY
+        // 通过 layout 上移 top，但保持 bottom 与 ll_content 顶部对齐，
+        // 这样无缝贴合内容顶部，且在上方形成“叠压”区域（不使用 translation）。
         val bottom = (dependency.y - lp.bottomMargin).roundToInt()
+        val top = (bottom - child.measuredHeight - overlap + lp.topMargin).roundToInt()
+        val right = child.measuredWidth + left - parent.paddingRight - lp.rightMargin
         child.layout(left, top, right, bottom)
     }
 }
