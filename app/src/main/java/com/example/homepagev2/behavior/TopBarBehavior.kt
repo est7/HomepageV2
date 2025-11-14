@@ -19,11 +19,11 @@ class TopBarBehavior @JvmOverloads constructor(
     attrs: AttributeSet? = null
 ) : CoordinatorLayout.Behavior<View>(context, attrs) {
 
-    private val contentTransY: Float
+    private var contentTransY: Float = Float.NaN
     private val topBarHeight: Int
 
     init {
-        contentTransY = context.resources.getDimension(R.dimen.content_trans_y)
+        // contentTransY captured dynamically from ll_content
         val resourceId = context.resources.getIdentifier("status_bar_height", "dimen", "android")
         val statusBarHeight = context.resources.getDimensionPixelSize(resourceId)
         topBarHeight = context.resources.getDimension(R.dimen.top_bar_height).toInt() + statusBarHeight
@@ -35,6 +35,11 @@ class TopBarBehavior @JvmOverloads constructor(
     }
 
     override fun onDependentViewChanged(parent: CoordinatorLayout, child: View, dependency: View): Boolean {
+        // 捕获初始 contentTransY
+        if (contentTransY.isNaN()) {
+            contentTransY = dependency.translationY
+        }
+
         // 计算 Content 上滑的百分比，设置子 view 的透明度
         val upPro = (contentTransY - MathUtils.clamp(
             dependency.translationY,

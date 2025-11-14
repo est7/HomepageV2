@@ -41,7 +41,8 @@ class UnifiedPullBehavior : CoordinatorLayout.Behavior<View> {
     private var downEndY: Float = 0f
     private var restoreAnimator: ValueAnimator
     private var flingAnimator: ValueAnimator
-    private lateinit var contentView: View
+    private var animationTargetView: View? = null
+    private var anchorsInitialized = false
     private var flingFromCollaps = false
 
     // 触摸事件处理
@@ -62,25 +63,15 @@ class UnifiedPullBehavior : CoordinatorLayout.Behavior<View> {
         val resourceId = context.resources.getIdentifier("status_bar_height", "dimen", "android")
         val statusBarHeight = context.resources.getDimensionPixelSize(resourceId)
         topBarHeight = context.resources.getDimension(R.dimen.top_bar_height).toInt() + statusBarHeight
-        contentTransY = context.resources.getDimension(R.dimen.content_trans_y)
-        downEndY = context.resources.getDimension(R.dimen.content_trans_down_end_y)
+        // contentTransY & downEndY will be computed dynamically based on face/titleBar measured sizes
 
         val configuration = ViewConfiguration.get(context)
         touchSlop = configuration.scaledTouchSlop
         maximumVelocity = configuration.scaledMaximumFlingVelocity.toFloat()
         minimumVelocity = configuration.scaledMinimumFlingVelocity.toFloat()
 
-        restoreAnimator = ValueAnimator().apply {
-            addUpdateListener { animation ->
-                contentView.translationY = animation.animatedValue as Float
-            }
-        }
-
-        flingAnimator = ValueAnimator().apply {
-            addUpdateListener { animation ->
-                contentView.translationY = animation.animatedValue as Float
-            }
-        }
+        restoreAnimator = ValueAnimator()
+        flingAnimator = ValueAnimator()
     }
 
     override fun onMeasureChild(
@@ -114,7 +105,36 @@ class UnifiedPullBehavior : CoordinatorLayout.Behavior<View> {
 
     override fun onLayoutChild(parent: CoordinatorLayout, child: View, layoutDirection: Int): Boolean {
         val handleLayout = super.onLayoutChild(parent, child, layoutDirection)
-        contentView = child
+
+        // Dynamically compute anchors: initial contentTransY = faceHeight + titleBarHeight,
+        // and max downEndY = contentTransY + faceHeight (one face-height extra pull).
+        val face = parent.findViewById<View>(R.id.face_container)
+        val titleBar = parent.findViewById<View>(R.id.cls_title_bar_container)
+        val faceHeight = when {
+            face != null && face.measuredHeight > 0 -> face.measuredHeight
+            face != null && face.measuredWidth > 0 -> face.measuredWidth // Square container fallback
+            else -> parent.measuredWidth // final fallback
+        }
+        val titleBarHeight = when {
+            titleBar != null && titleBar.measuredHeight > 0 -> titleBar.measuredHeight
+            else -> parent.context.resources.getDimension(R.dimen.title_bar_height).toInt()
+        }
+
+        val newContentTransY = (faceHeight + titleBarHeight).toFloat()
+        val newDownEndY = newContentTransY + faceHeight
+
+        if (contentTransY != newContentTransY || downEndY != newDownEndY) {
+            contentTransY = newContentTransY
+            downEndY = newDownEndY
+
+            // Stop ongoing animations and snap to the new anchor to avoid jumpiness
+            if (restoreAnimator.isStarted) restoreAnimator.cancel()
+            if (flingAnimator.isStarted) flingAnimator.cancel()
+
+            child.translationY = contentTransY
+            anchorsInitialized = true
+        }
+
         return handleLayout
     }
 
@@ -168,7 +188,7 @@ class UnifiedPullBehavior : CoordinatorLayout.Behavior<View> {
                     val isContentAtTop = !canChildScrollUp(child)
 
                     // 拦截条件：下拉 且 内容在顶部
-                    if (isDownPull && isContentAtTop) {
+                    if (isDownPull && isContentAtTop && anchorsInitialized) {
                         isBeingDragged = true
                         lastTouchY = ev.y // 更新起始点，避免跳跃
                         return true
@@ -223,11 +243,11 @@ class UnifiedPullBehavior : CoordinatorLayout.Behavior<View> {
 
                     // 处理 fling
                     if (abs(velocityY) > minimumVelocity) {
-                        handleFling(child, velocityY)
+                        if (anchorsInitialized) handleFling(child, velocityY)
                     } else {
                         // 回弹到初始位置（仅在下拉状态时才回弹）
-                        if (child.translationY > contentTransY) {
-                            restore()
+                        if (anchorsInitialized && child.translationY > contentTransY) {
+                            restore(child)
                         }
                     }
 
@@ -244,8 +264,8 @@ class UnifiedPullBehavior : CoordinatorLayout.Behavior<View> {
                 velocityTracker = null
 
                 // 仅在下拉状态时才回弹
-                if (child.translationY > contentTransY) {
-                    restore()
+                if (anchorsInitialized && child.translationY > contentTransY) {
+                    restore(child)
                 }
                 return true
             }
@@ -267,7 +287,8 @@ class UnifiedPullBehavior : CoordinatorLayout.Behavior<View> {
         if (flingAnimator.isStarted) {
             flingAnimator.cancel()
         }
-
+        flingAnimator.removeAllUpdateListeners()
+        flingAnimator.removeAllListeners()
         flingAnimator.setFloatValues(currentTransY, targetTransY)
         flingAnimator.duration = 300L
         flingAnimator.addUpdateListener { animation ->
@@ -284,7 +305,7 @@ class UnifiedPullBehavior : CoordinatorLayout.Behavior<View> {
         flingAnimator.addListener(object : android.animation.AnimatorListenerAdapter() {
             override fun onAnimationEnd(animation: android.animation.Animator) {
                 if (child.translationY > contentTransY) {
-                    child.postDelayed({ restore() }, 100)
+                    child.postDelayed({ restore(child) }, 100)
                 }
             }
         })
@@ -345,8 +366,8 @@ class UnifiedPullBehavior : CoordinatorLayout.Behavior<View> {
 
     override fun onStopNestedScroll(coordinatorLayout: CoordinatorLayout, child: View, target: View, type: Int) {
         val shouldRestore = child.translationY > contentTransY
-        if (shouldRestore) {
-            restore()
+        if (anchorsInitialized && shouldRestore) {
+            restore(child)
         }
     }
 
@@ -439,13 +460,21 @@ class UnifiedPullBehavior : CoordinatorLayout.Behavior<View> {
         view.translationY = translationY
     }
 
-    private fun restore() {
+    private fun restore(target: View) {
+        // Stop and reset animator listeners to avoid stale targets
         if (restoreAnimator.isStarted) {
             restoreAnimator.cancel()
-            restoreAnimator.removeAllListeners()
         }
-        restoreAnimator.setFloatValues(contentView.translationY, contentTransY)
+        restoreAnimator.removeAllUpdateListeners()
+        restoreAnimator.removeAllListeners()
+
+        animationTargetView = target
+        val from = target.translationY
+        restoreAnimator.setFloatValues(from, contentTransY)
         restoreAnimator.duration = ANIM_DURATION_FRACTION
+        restoreAnimator.addUpdateListener { animation ->
+            animationTargetView?.translationY = animation.animatedValue as Float
+        }
         restoreAnimator.start()
     }
 

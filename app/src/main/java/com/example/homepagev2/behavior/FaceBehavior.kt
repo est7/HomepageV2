@@ -38,8 +38,8 @@ class FaceBehavior(context: Context, attrs: AttributeSet?) :
     }
 
     private var topBarHeight: Int = 0 // TopBar 内容高度（含状态栏）
-    private var contentTransY: Float = 0f // 内容初始 translationY（折叠起点）
-    private var downEndY: Float = 0f // 下拉时 content 的终点 translationY（展开终点）
+    private var contentTransY: Float = Float.NaN // 内容初始 translationY（折叠起点）
+    private var downEndY: Float = Float.NaN // 下拉时 content 的终点 translationY（展开终点）
     private var faceTransY: Float = 0f // 可选：图片的额外位移（一般为 0 表示关闭）
     private var drawable: GradientDrawable // 蒙层背景（由 Palette 生成的渐变）
     private val initialScale = 1.0f
@@ -56,8 +56,7 @@ class FaceBehavior(context: Context, attrs: AttributeSet?) :
         val statusBarHeight = context.resources.getDimensionPixelSize(resourceId)
         topBarHeight =
             context.resources.getDimension(R.dimen.top_bar_height).toInt() + statusBarHeight
-        contentTransY = context.resources.getDimension(R.dimen.content_trans_y)
-        downEndY = context.resources.getDimension(R.dimen.content_trans_down_end_y)
+        // contentTransY/downEndY will be computed dynamically from ll_content/face measured sizes
         faceTransY = context.resources.getDimension(R.dimen.face_trans_y)
 
         //抽取图片资源的亮色或者暗色作为蒙层的背景渐变色
@@ -110,6 +109,15 @@ class FaceBehavior(context: Context, attrs: AttributeSet?) :
         child: View,
         dependency: View
     ): Boolean {
+        // 动态捕获锚点
+        if (contentTransY.isNaN()) {
+            contentTransY = dependency.translationY
+        }
+        if (downEndY.isNaN()) {
+            val faceH = if (child.height > 0) child.height else child.width
+            downEndY = contentTransY + faceH
+        }
+
         // 计算 Content 的上滑百分比、下滑百分比
         val upPro = (contentTransY - MathUtils.clamp(
             dependency.translationY,

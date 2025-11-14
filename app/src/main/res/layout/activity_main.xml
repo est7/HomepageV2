@@ -14,10 +14,10 @@
         android:clipToPadding="false">
 
         <!--face部分-->
-        <com.example.homepagev2.widget.NestedScrollFrameLayout
+        <com.example.homepagev2.widget.SquareNestedScrollFrameLayout
             android:id="@+id/face_container"
             android:layout_width="match_parent"
-            android:layout_height="@dimen/iv_face_height"
+            android:layout_height="wrap_content"
             android:clipChildren="false"
             android:clipToPadding="false"
             app:layout_behavior=".behavior.FaceBehavior">
@@ -25,7 +25,7 @@
             <androidx.viewpager2.widget.ViewPager2
                 android:id="@+id/iv_face"
                 android:layout_width="match_parent"
-                android:layout_height="@dimen/iv_face_height"
+                android:layout_height="match_parent"
                 android:scaleType="centerCrop"
                 android:src="@drawable/avatar_gender"
                 android:tag="iv_face" />
@@ -33,10 +33,9 @@
             <View
                 android:id="@+id/v_mask"
                 android:layout_width="match_parent"
-                android:background="@color/black"
                 android:layout_gravity="bottom"
-                android:layout_height="@dimen/iv_face_height" />
-        </com.example.homepagev2.widget.NestedScrollFrameLayout>
+                android:layout_height="match_parent" />
+        </com.example.homepagev2.widget.SquareNestedScrollFrameLayout>
         <!--face部分-->
 
         <!--UserInfo部分-->
@@ -44,7 +43,7 @@
             android:id="@+id/ll_userinfo"
             android:layout_width="match_parent"
             android:layout_height="@dimen/userinfo_height"
-            android:background="@color/black"
+            android:background="#7700ffff"
             app:layout_behavior=".behavior.UserInfoBehavior">
 
             <TextView
@@ -106,7 +105,7 @@
         <com.example.homepagev2.widget.NestedScrollFrameLayout
             android:id="@+id/cls_title_bar_container"
             android:layout_width="match_parent"
-            android:layout_height="100dp"
+            android:layout_height="@dimen/title_bar_height"
             app:layout_behavior=".behavior.TitleBarBehavior">
 
             <androidx.constraintlayout.widget.ConstraintLayout

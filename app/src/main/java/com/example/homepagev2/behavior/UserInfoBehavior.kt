@@ -17,18 +17,16 @@ import kotlin.math.roundToInt
  * - 像素对齐：使用 roundToInt() 避免浮点转整导致的 1px 缝隙。
  */
 class UserInfoBehavior : CoordinatorLayout.Behavior<View> {
-    private var contentTransY: Float = 0f //滑动内容初始化TransY
+    private var contentTransY: Float = Float.NaN // 动态基于 ll_content.translationY
     private var topBarHeight: Int = 0 //topBar内容高度
-    private var titleBarHeight: Float = 0f //title_bar的高度
+    private var titleBarHeight: Float = 0f //title_bar的高度（回退用）
     private var userInfoHeight: Float = 0f //userinfo的高度
-    private var ivFaceHeight: Float = 0f //iv_face的高度
 
     @JvmOverloads
     constructor(context: Context, attrs: AttributeSet? = null) : super(context, attrs) {
-        contentTransY = context.resources.getDimension(R.dimen.content_trans_y)
+        // contentTransY will be captured from dependency at runtime
         titleBarHeight = context.resources.getDimension(R.dimen.title_bar_height)
         userInfoHeight = context.resources.getDimension(R.dimen.userinfo_height)
-        ivFaceHeight = context.resources.getDimension(R.dimen.iv_face_height)
         val resourceId = context.resources.getIdentifier("status_bar_height", "dimen", "android")
         val statusBarHeight = context.resources.getDimensionPixelSize(resourceId)
         topBarHeight = context.resources.getDimension(R.dimen.top_bar_height).toInt() + statusBarHeight
@@ -39,16 +37,30 @@ class UserInfoBehavior : CoordinatorLayout.Behavior<View> {
     }
 
     override fun onDependentViewChanged(parent: CoordinatorLayout, child: View, dependency: View): Boolean {
+        // 捕获内容初始锚点
+        if (contentTransY.isNaN()) {
+            contentTransY = dependency.translationY
+        }
+
         // 调整 UserInfo 位置：在 TitleBar 上方，TitleBar 紧贴 Content 顶部上面
         adjustPosition(parent, child, dependency)
 
-        // 计算透明度：从初始位置滑动到完全隐藏（滑到 iv_face 底部）
-        val start = ivFaceHeight
-        val upPro = (contentTransY - MathUtils.clamp(
-            dependency.translationY,
-            start,
-            contentTransY
-        )) / (contentTransY - start)
+        // 计算透明度：从初始位置滑动到完全隐藏（滑到 face 底部）
+        val face = parent.findViewById<View>(R.id.face_container)
+        val faceHeight = when {
+            face != null && face.measuredHeight > 0 -> face.measuredHeight.toFloat()
+            face != null && face.measuredWidth > 0 -> face.measuredWidth.toFloat()
+            else -> 0f
+        }
+
+        val start = faceHeight
+        val upPro = if (contentTransY != start && start > 0f) {
+            (contentTransY - MathUtils.clamp(
+                dependency.translationY,
+                start,
+                contentTransY
+            )) / (contentTransY - start)
+        } else 0f
 
         child.alpha = 1 - upPro
         return true
@@ -60,6 +72,9 @@ class UserInfoBehavior : CoordinatorLayout.Behavior<View> {
         return if (dependency != null) {
             // 调整 UserInfo 位置
             adjustPosition(parent, child, dependency)
+            if (contentTransY.isNaN()) {
+                contentTransY = dependency.translationY
+            }
             true
         } else {
             false
@@ -69,8 +84,11 @@ class UserInfoBehavior : CoordinatorLayout.Behavior<View> {
     private fun adjustPosition(parent: CoordinatorLayout, child: View, dependency: View) {
         val lp = child.layoutParams as CoordinatorLayout.LayoutParams
         val left = parent.paddingLeft + lp.leftMargin
+        // 动态获取 TitleBar 实际高度，若不可用回退到 dimen
+        val titleBar = parent.findViewById<View>(R.id.cls_title_bar_container)
+        val titleH = (titleBar?.measuredHeight ?: 0).takeIf { it > 0 }?.toFloat() ?: titleBarHeight
         // UserInfo 顶部位置 = ll_content.y - title_bar_height - userinfo_height
-        val top = (dependency.y - titleBarHeight - userInfoHeight + lp.topMargin).roundToInt()
+        val top = (dependency.y - titleH - userInfoHeight + lp.topMargin).roundToInt()
         val right = child.measuredWidth + left - parent.paddingRight - lp.rightMargin
         val bottom = top + child.measuredHeight - lp.bottomMargin
         child.layout(left, top, right, bottom)

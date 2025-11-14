@@ -16,13 +16,13 @@ import kotlin.math.roundToInt
  * - 像素对齐：使用 roundToInt() 布局，避免 1px 抖动/缝隙。
  */
 class TitleBarBehavior : CoordinatorLayout.Behavior<View> {
-    private var contentTransY: Float = 0f //滑动内容初始化TransY
+    private var contentTransY: Float = Float.NaN // 动态从 ll_content.translationY 捕获
     private var topBarHeight: Int = 0 //topBar内容高度
     private var overlapOffsetY: Float = 0f // TitleBar 向上覆盖 Face 的偏移量（不硬编码，来自 R.dimen）
 
     @JvmOverloads
     constructor(context: Context, attrs: AttributeSet? = null) : super(context, attrs) {
-        contentTransY = context.resources.getDimension(R.dimen.content_trans_y)
+        // contentTransY will be captured dynamically from ll_content on first layout/change
         val resourceId = context.resources.getIdentifier("status_bar_height", "dimen", "android")
         val statusBarHeight = context.resources.getDimensionPixelSize(resourceId)
         topBarHeight = context.resources.getDimension(R.dimen.top_bar_height).toInt() + statusBarHeight
@@ -37,10 +37,15 @@ class TitleBarBehavior : CoordinatorLayout.Behavior<View> {
     override fun onDependentViewChanged(parent: CoordinatorLayout, child: View, dependency: View): Boolean {
         // 调整 TitleBar 位置要紧贴 Content 顶部上面
         adjustPosition(parent, child, dependency)
+        // 捕获内容初始锚点
+        if (contentTransY.isNaN()) {
+            contentTransY = dependency.translationY
+        }
         // 这里只计算 Content 上滑范围一半的百分比
-        val start = (contentTransY + topBarHeight) / 2
-        val upPro =
+        val start = (contentTransY + topBarHeight) / 2f
+        val upPro = if (contentTransY != start) {
             (contentTransY - MathUtils.clamp(dependency.translationY, start, contentTransY)) / (contentTransY - start)
+        } else 0f
         child.alpha = 1 - upPro
         // 将 TitleBar 轻微上移，形成与 face 的叠压效果
         child.translationY = -overlapOffsetY
@@ -55,6 +60,10 @@ class TitleBarBehavior : CoordinatorLayout.Behavior<View> {
             adjustPosition(parent, child, dependency)
             // 初始布局同样应用上移偏移
             child.translationY = -overlapOffsetY
+            // 捕获初始 contentTransY
+            if (contentTransY.isNaN()) {
+                contentTransY = dependency.translationY
+            }
             true
         } else {
             false

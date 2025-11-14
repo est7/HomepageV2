@@ -14,7 +14,7 @@ import kotlin.math.abs
  * 支持嵌套滚动的 FrameLayout
  * 用于包裹 Face 区域，使其能触发 CoordinatorLayout 的嵌套滚动
  */
-class NestedScrollFrameLayout @JvmOverloads constructor(
+open class NestedScrollFrameLayout @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0
