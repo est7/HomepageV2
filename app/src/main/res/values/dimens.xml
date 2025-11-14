@@ -7,7 +7,9 @@
     <dimen name="iv_face_height">360dp</dimen>
     <dimen name="userinfo_height">100dp</dimen>
     <dimen name="title_bar_height">100dp</dimen>
-    <dimen name="content_trans_y">560dp</dimen> <!-- iv_face_height (360dp) + userinfo_height (100dp) + title_bar_height (100dp) -->
-    <dimen name="content_trans_down_end_y">1120dp</dimen> <!-- content_trans_y * 2 -->
+    <dimen name="content_trans_y">460dp</dimen> <!-- iv_face_height (360dp) + title_bar_height (100dp); userinfo overlays face -->
+    <dimen name="content_trans_down_end_y">920dp</dimen> <!-- content_trans_y * 2 -->
     <dimen name="top_bar_height">56dp</dimen>
+    <!-- TitleBar slight upward overlap onto face -->
+    <dimen name="title_bar_overlap_y">10dp</dimen>
 </resources>

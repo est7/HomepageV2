@@ -9,25 +9,29 @@ import com.example.homepagev2.R
 import kotlin.math.roundToInt
 
 /**
- * TitleBar 区域的行为控制。
- * - 位置：始终紧贴 ll_content 顶部（top = ll_content.y - titleBar.height）。
- * - 渐显：仅在折叠区间的一半内计算透明度（start = (contentTransY + topBarHeight) / 2），
- *   让 TitleBar 在上滑到一半后才逐步显现，避免过早遮挡内容。
- * - 像素对齐：使用 roundToInt() 布局，避免 1px 抖动/缝隙。
+ * UserInfo 区域的行为控制。
+ * - 位置：始终位于 TitleBar（cls_title_bar）上方，且两者都贴在 ll_content 顶部之上。
+ *   top = ll_content.y - title_bar_height - userinfo_height。
+ * - 渐隐：当 ll_content 从初始位置上滑到 iv_face 底部位置（iv_face_height）时，
+ *   按进度 upPro 将 UserInfo 从 1 → 0 淡出，避免覆盖内容。
+ * - 像素对齐：使用 roundToInt() 避免浮点转整导致的 1px 缝隙。
  */
-class TitleBarBehavior : CoordinatorLayout.Behavior<View> {
+class UserInfoBehavior : CoordinatorLayout.Behavior<View> {
     private var contentTransY: Float = 0f //滑动内容初始化TransY
     private var topBarHeight: Int = 0 //topBar内容高度
-    private var overlapOffsetY: Float = 0f // TitleBar 向上覆盖 Face 的偏移量（不硬编码，来自 R.dimen）
+    private var titleBarHeight: Float = 0f //title_bar的高度
+    private var userInfoHeight: Float = 0f //userinfo的高度
+    private var ivFaceHeight: Float = 0f //iv_face的高度
 
     @JvmOverloads
     constructor(context: Context, attrs: AttributeSet? = null) : super(context, attrs) {
         contentTransY = context.resources.getDimension(R.dimen.content_trans_y)
+        titleBarHeight = context.resources.getDimension(R.dimen.title_bar_height)
+        userInfoHeight = context.resources.getDimension(R.dimen.userinfo_height)
+        ivFaceHeight = context.resources.getDimension(R.dimen.iv_face_height)
         val resourceId = context.resources.getIdentifier("status_bar_height", "dimen", "android")
         val statusBarHeight = context.resources.getDimensionPixelSize(resourceId)
         topBarHeight = context.resources.getDimension(R.dimen.top_bar_height).toInt() + statusBarHeight
-        // 轻微上移以“压住” face 一小部分
-        overlapOffsetY = context.resources.getDimension(R.dimen.title_bar_overlap_y)
     }
 
     override fun layoutDependsOn(parent: CoordinatorLayout, child: View, dependency: View): Boolean {
@@ -35,15 +39,18 @@ class TitleBarBehavior : CoordinatorLayout.Behavior<View> {
     }
 
     override fun onDependentViewChanged(parent: CoordinatorLayout, child: View, dependency: View): Boolean {
-        // 调整 TitleBar 位置要紧贴 Content 顶部上面
+        // 调整 UserInfo 位置：在 TitleBar 上方，TitleBar 紧贴 Content 顶部上面
         adjustPosition(parent, child, dependency)
-        // 这里只计算 Content 上滑范围一半的百分比
-        val start = (contentTransY + topBarHeight) / 2
-        val upPro =
-            (contentTransY - MathUtils.clamp(dependency.translationY, start, contentTransY)) / (contentTransY - start)
+
+        // 计算透明度：从初始位置滑动到完全隐藏（滑到 iv_face 底部）
+        val start = ivFaceHeight
+        val upPro = (contentTransY - MathUtils.clamp(
+            dependency.translationY,
+            start,
+            contentTransY
+        )) / (contentTransY - start)
+
         child.alpha = 1 - upPro
-        // 将 TitleBar 轻微上移，形成与 face 的叠压效果
-        child.translationY = -overlapOffsetY
         return true
     }
 
@@ -51,10 +58,8 @@ class TitleBarBehavior : CoordinatorLayout.Behavior<View> {
         // 找到 Content 的依赖引用
         val dependency = parent.getDependencies(child).find { it.id == R.id.ll_content }
         return if (dependency != null) {
-            // 调整 TitleBar 位置要紧贴 Content 顶部上面
+            // 调整 UserInfo 位置
             adjustPosition(parent, child, dependency)
-            // 初始布局同样应用上移偏移
-            child.translationY = -overlapOffsetY
             true
         } else {
             false
@@ -64,9 +69,10 @@ class TitleBarBehavior : CoordinatorLayout.Behavior<View> {
     private fun adjustPosition(parent: CoordinatorLayout, child: View, dependency: View) {
         val lp = child.layoutParams as CoordinatorLayout.LayoutParams
         val left = parent.paddingLeft + lp.leftMargin
-        val top = (dependency.y - child.measuredHeight + lp.topMargin).roundToInt()
+        // UserInfo 顶部位置 = ll_content.y - title_bar_height - userinfo_height
+        val top = (dependency.y - titleBarHeight - userInfoHeight + lp.topMargin).roundToInt()
         val right = child.measuredWidth + left - parent.paddingRight - lp.rightMargin
-        val bottom = (dependency.y - lp.bottomMargin).roundToInt()
+        val bottom = top + child.measuredHeight - lp.bottomMargin
         child.layout(left, top, right, bottom)
     }
 }
