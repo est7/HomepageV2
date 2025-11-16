@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:clipChildren="false"
+    android:clipToPadding="false">
+
+    <androidx.coordinatorlayout.widget.CoordinatorLayout
+        android:id="@+id/coordinator"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipChildren="false"
+        android:clipToPadding="false">
+
+        <!-- TopBar: 固定在顶部，只有内容 alpha 变化 -->
+        <com.example.homepagev2.widget.TopBarLayout
+            android:id="@+id/top_bar"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/top_bar_height"
+            android:background="@color/black"
+            app:layout_behavior=".behavior.TopBarContentBehavior">
+
+            <ImageView
+                android:id="@+id/iv_back"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_marginBottom="0dp"
+                android:scaleType="center"
+                android:src="@drawable/ic_launcher_background"
+                app:layout_constraintBottom_toBottomOf="@+id/tv_top_bar_name"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="@+id/tv_top_bar_name" />
+
+            <TextView
+                android:id="@+id/tv_top_bar_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                android:text="林俊杰"
+                android:textColor="@android:color/white"
+                android:textSize="20sp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toEndOf="@+id/iv_back" />
+
+            <TextView
+                android:id="@+id/tv_top_bar_coll"
+                android:layout_width="72dp"
+                android:layout_height="24dp"
+                android:layout_marginEnd="8dp"
+                android:drawablePadding="4dp"
+                android:gravity="center_vertical"
+                android:text="收藏"
+                android:textColor="@android:color/white"
+                android:textSize="14sp"
+                app:layout_constraintBottom_toBottomOf="@+id/tv_top_bar_name"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="@+id/tv_top_bar_name" />
+        </com.example.homepagev2.widget.TopBarLayout>
+
+        <!-- Face: 可缩放的头像区域 -->
+        <com.example.homepagev2.widget.SquareNestedScrollFrameLayout
+            android:id="@+id/face_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            app:layout_behavior=".behavior.FaceBehaviorV2">
+
+            <androidx.viewpager2.widget.ViewPager2
+                android:id="@+id/iv_face"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop" />
+
+            <View
+                android:id="@+id/v_mask"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_gravity="bottom" />
+        </com.example.homepagev2.widget.SquareNestedScrollFrameLayout>
+
+        <!-- UserInfo: 悬浮层，触摸穿透到 Face -->
+        <com.example.homepagev2.widget.PassThroughFrameLayout
+            android:id="@+id/user_info"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/userinfo_height"
+            android:background="#7700ffff"
+            app:layout_behavior=".behavior.UserInfoBehaviorV2">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:text="用户信息"
+                android:textColor="@android:color/white"
+                android:textSize="16sp" />
+        </com.example.homepagev2.widget.PassThroughFrameLayout>
+
+        <!-- MainScrollContainer: 包含 TitleBar + TabLayout + Content 的主容器 -->
+        <LinearLayout
+            android:id="@+id/main_scroll_container"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            app:layout_behavior=".behavior.MainScrollBehavior">
+
+            <!-- TitleBar: 补充资料 -->
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/title_bar"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/title_bar_height"
+                android:background="#88000000">
+
+                <TextView
+                    android:id="@+id/tv_title_name"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="16dp"
+                    android:text="补充资料"
+                    android:textColor="@android:color/white"
+                    android:textSize="20sp"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <TextView
+                    android:layout_width="72dp"
+                    android:layout_height="32dp"
+                    android:layout_marginEnd="8dp"
+                    android:drawablePadding="4dp"
+                    android:gravity="center_vertical"
+                    android:text="关注"
+                    android:textColor="@android:color/white"
+                    android:textSize="14sp"
+                    app:layout_constraintBottom_toBottomOf="@+id/tv_title_name"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="@+id/tv_title_name" />
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <!-- TabLayout -->
+            <com.google.android.material.tabs.TabLayout
+                android:id="@+id/tab_layout"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:background="@color/black" />
+
+            <!-- Content ViewPager2 -->
+            <androidx.viewpager2.widget.ViewPager2
+                android:id="@+id/view_pager"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@android:color/white" />
+        </LinearLayout>
+
+    </androidx.coordinatorlayout.widget.CoordinatorLayout>
+
+    <!-- Bottom Navigation -->
+    <com.example.homepagev2.widget.AnimatedNavigationBar
+        android:id="@+id/navigation_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="70dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+</androidx.constraintlayout.widget.ConstraintLayout>

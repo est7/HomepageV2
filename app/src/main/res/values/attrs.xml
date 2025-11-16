@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="UserInfoTouchProxyLayout">
+        <!-- 需要透传触摸事件的目标 View（通常是 face 的 ViewPager2 或其容器） -->
+        <attr name="touchProxyTargetId" format="reference" />
+    </declare-styleable>
+</resources>
+

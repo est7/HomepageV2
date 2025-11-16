@@ -12,4 +12,6 @@
     <dimen name="top_bar_height">56dp</dimen>
     <!-- TitleBar slight upward overlap onto face -->
     <dimen name="title_bar_overlap_y">10dp</dimen>
+    <!-- TitleBar overlap onto UserInfo -->
+    <dimen name="title_bar_overlap_userinfo">20dp</dimen>
 </resources>
