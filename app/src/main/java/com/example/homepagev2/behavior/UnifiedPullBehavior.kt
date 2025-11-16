@@ -15,6 +15,7 @@ import androidx.core.widget.NestedScrollView
 import androidx.recyclerview.widget.RecyclerView
 import com.example.homepagev2.R
 import kotlin.math.abs
+import android.util.Log
 
 /**
  * 统一的下拉放大/回弹 Behavior（用于 ll_content）。
@@ -160,6 +161,7 @@ class UnifiedPullBehavior : CoordinatorLayout.Behavior<View> {
 
                 // 记录本次手势是否从“头部区域”开始（face/userinfo/title_bar）
                 isHeaderDrag = isInHeaderArea(parent, ev)
+                Log.d(TAG, "intercept DOWN: header=$isHeaderDrag ty=${child.translationY}")
             }
 
             MotionEvent.ACTION_MOVE -> {
@@ -216,6 +218,7 @@ class UnifiedPullBehavior : CoordinatorLayout.Behavior<View> {
                         }
                         isBeingDragged = true
                         lastTouchY = ev.y // 更新起始点，避免跳跃
+                        Log.d(TAG, "intercept MOVE: vertical intercept, down=$shouldInterceptDown up=$shouldInterceptUp atInitial=${atInitialAnchor} top=${child.translationY} canCollapse=${canCollapseMore}")
                         return true
                     }
                 }
